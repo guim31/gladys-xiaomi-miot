@@ -1,45 +1,57 @@
 // -----------------------------------------------------------------------------
-// Integration configuration.
-//
-// The configuration is filled in by the user in Gladys, from the `config_schema`
-// declared in `gladys-assistant-integration.json`. The SDK fetches it for you
-// (`gladys.getConfig()`) and notifies you of every change through
-// `gladys.onConfigUpdated()`.
-//
-// This module only provides defaults and normalizes the received object, so the
-// rest of the code never has to deal with `undefined`.
+// Integration configuration: defaults (they mirror the `default` values of the
+// manifest `config_schema`, see test/manifest.test.js) and normalization, so
+// the rest of the code never deals with strings, blanks or `undefined`.
 // -----------------------------------------------------------------------------
 
-// Defaults: they MUST stay consistent with the `default` values declared in the
-// `config_schema` of the manifest.
+import { DEVICE_POLL_FREQUENCIES } from '@gladysassistant/integration-sdk';
+import { REGIONS } from './cloud/client.js';
+import { LANGUAGES } from './miot/names.js';
+
+export { LANGUAGES };
+
+// Seconds between two reads of every device (`poll_interval` options).
+export const POLL_INTERVALS = [15, 30, 60, 120];
+
 export const DEFAULT_CONFIG = {
-  latitude: 48.8566, // Paris
-  longitude: 2.3522,
-  unit: 'celsius', // 'celsius' | 'fahrenheit'
-  // Seconds between two reads of the polled sensors. Gladys polls at most once
-  // a minute: slower intervals are applied by skipping polls (see
-  // createPoller in src/devices/index.js).
-  poll_frequency: 300,
-  // Reserved key (NOT in config_schema): because the manifest declares both
-  // 'local' and 'cloud' in its `transports` field, Gladys shows a standard
-  // "Prefer the local connection" toggle and sends the user's choice here.
-  // Read-only for the integration; defaults to true.
-  GLADYS_PREFER_LOCAL: true,
+  username: '',
+  password: '',
+  region: 'de',
+  poll_interval: '30',
+  language: 'fr',
 };
 
 /**
- * Merge the user config with the defaults.
- * @param {Record<string, unknown>} raw config returned by the SDK
+ * @param {Record<string, unknown>} raw the configuration returned by the SDK
  */
 export function normalizeConfig(raw = {}) {
+  const source = raw && typeof raw === 'object' ? raw : {};
+  const text = (value) => (typeof value === 'string' ? value.trim() : '');
+  const interval = Number(source.poll_interval ?? DEFAULT_CONFIG.poll_interval);
+  const username = text(source.username);
+  // A password may start or end with a space: kept as typed.
+  const password = typeof source.password === 'string' ? source.password : '';
   return {
-    ...DEFAULT_CONFIG,
-    ...raw,
-    // Force the types: config may arrive as strings from a form.
-    latitude: Number(raw.latitude ?? DEFAULT_CONFIG.latitude),
-    longitude: Number(raw.longitude ?? DEFAULT_CONFIG.longitude),
-    poll_frequency: Number(raw.poll_frequency ?? DEFAULT_CONFIG.poll_frequency),
-    // The preference is a boolean; anything but an explicit false means true.
-    GLADYS_PREFER_LOCAL: raw.GLADYS_PREFER_LOCAL !== false,
+    username,
+    password,
+    hasCredentials: username !== '' && password !== '',
+    region: REGIONS.includes(source.region) ? source.region : DEFAULT_CONFIG.region,
+    pollSeconds: POLL_INTERVALS.includes(interval)
+      ? interval
+      : Number(DEFAULT_CONFIG.poll_interval),
+    language: LANGUAGES.includes(source.language) ? source.language : DEFAULT_CONFIG.language,
   };
+}
+
+/**
+ * The `poll_frequency` published with the devices: the Gladys value closest
+ * to the configured pace, never longer than a minute. Gladys only uses it as
+ * a fallback (see src/poller.js): the container reads the devices itself.
+ */
+export function pollFrequencyMs(pollSeconds) {
+  const allowed = Object.values(DEVICE_POLL_FREQUENCIES).sort((a, b) => a - b);
+  const wanted = Math.min(pollSeconds * 1000, DEVICE_POLL_FREQUENCIES.EVERY_MINUTES);
+  return allowed.reduce((best, value) =>
+    Math.abs(value - wanted) < Math.abs(best - wanted) ? value : best,
+  );
 }

@@ -1,0 +1,233 @@
+{
+  "model": "cgllc.airm.cgs2",
+  "source": "homebridge-miot 2.0.0 (MIT), lib/modules/*/devices/cgllc.airm.cgs2.js",
+  "spec": {
+    "type": "urn:miot-spec-v2:device:air-monitor:0000A008:cgllc-cgs2:1",
+    "description": "Qingping Air Monitor 2",
+    "services": [
+      {
+        "iid": 1,
+        "type": "urn:miot-spec-v2:service:device-information:00007801:cgllc-cgs2:1",
+        "description": "Device Information",
+        "properties": []
+      },
+      {
+        "iid": 2,
+        "type": "urn:miot-spec-v2:service:air-monitor:00007812:cgllc-cgs2:1",
+        "description": "Air Monitor",
+        "properties": []
+      },
+      {
+        "iid": 3,
+        "type": "urn:miot-spec-v2:service:environment:0000780A:cgllc-cgs2:1",
+        "description": "Environment",
+        "properties": [
+          {
+            "iid": 1,
+            "type": "urn:miot-spec-v2:property:relative-humidity:0000000C:cgllc-cgs2:1",
+            "description": "Relative Humidity",
+            "format": "float",
+            "access": ["read", "notify"],
+            "unit": "percentage",
+            "value-range": [0, 100, 0.1]
+          },
+          {
+            "iid": 4,
+            "type": "urn:miot-spec-v2:property:pm2.5-density:00000034:cgllc-cgs2:1",
+            "description": "PM2.5 Density",
+            "format": "float",
+            "access": ["read", "notify"],
+            "unit": "μg/m3",
+            "value-range": [0, 1000, 1]
+          },
+          {
+            "iid": 5,
+            "type": "urn:miot-spec-v2:property:pm10-density:00000035:cgllc-cgs2:1",
+            "description": "PM10 Density",
+            "format": "float",
+            "access": ["read", "notify"],
+            "unit": "μg/m3",
+            "value-range": [0, 1000, 1]
+          },
+          {
+            "iid": 7,
+            "type": "urn:miot-spec-v2:property:temperature:00000020:cgllc-cgs2:1",
+            "description": "Temperature",
+            "format": "float",
+            "access": ["read", "notify"],
+            "unit": "celsius",
+            "value-range": [-30, 100, 0.1]
+          },
+          {
+            "iid": 8,
+            "type": "urn:miot-spec-v2:property:co2-density:0000004B:cgllc-cgs2:1",
+            "description": "CO2 Density",
+            "format": "float",
+            "access": ["read", "notify"],
+            "unit": "ppm",
+            "value-range": [0, 10000, 1]
+          },
+          {
+            "iid": 9,
+            "type": "urn:miot-spec-v2:property:tvoc-density:00000065:cgllc-cgs2:1",
+            "description": "TVOC Density",
+            "format": "int32",
+            "access": ["read", "notify"],
+            "unit": "none",
+            "value-range": [0, 65535, 1]
+          }
+        ]
+      },
+      {
+        "iid": 4,
+        "type": "urn:miot-spec-v2:service:battery:00007805:cgllc-cgs2:1",
+        "description": "Battery",
+        "properties": [
+          {
+            "iid": 1,
+            "type": "urn:miot-spec-v2:property:battery-level:00000014:cgllc-cgs2:1",
+            "description": "Battery Level",
+            "format": "uint8",
+            "access": ["read", "notify"],
+            "unit": "percentage",
+            "value-range": [0, 100, 1]
+          },
+          {
+            "iid": 2,
+            "type": "urn:miot-spec-v2:property:charging-state:00000015:cgllc-cgs2:1",
+            "description": "Charging State",
+            "format": "uint8",
+            "access": ["read", "notify"],
+            "value-list": [
+              {
+                "value": 1,
+                "description": "Charging"
+              },
+              {
+                "value": 2,
+                "description": "Not charging"
+              },
+              {
+                "value": 3,
+                "description": "Not chargeable"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "iid": 10,
+        "type": "urn:cgllc-spec:service:sound-recognition:000078F8:cgllc-cgs2:1",
+        "description": "Sound Recognition",
+        "properties": [
+          {
+            "iid": 2,
+            "type": "urn:miot-spec-v2:property:noise-decibel:0000037D:cgllc-cgs2:1",
+            "description": "Noise Decibel",
+            "format": "uint8",
+            "access": ["read", "notify"],
+            "unit": "dB",
+            "value-range": [0, 200, 1]
+          }
+        ]
+      },
+      {
+        "iid": 11,
+        "type": "urn:cgllc-spec:service:clock-alarm:00007801:cgllc-cgs2:1",
+        "description": "clock-alarm",
+        "properties": [
+          {
+            "iid": 2,
+            "type": "urn:cgllc-spec:service:clock-alarm:00007801:cgllc-cgs2:1",
+            "description": "alarms",
+            "format": "string",
+            "access": ["read", "notify"]
+          }
+        ]
+      },
+      {
+        "iid": 12,
+        "type": "urn:cgllc-spec:service:settings:00007802:cgllc-cgs2:1",
+        "description": "settings",
+        "properties": [
+          {
+            "iid": 1,
+            "type": "urn:cgllc-spec:property:temperature-unit:00000001:cgllc-cgs2:1",
+            "description": "temperature-unit",
+            "format": "uint16",
+            "access": ["read", "notify"],
+            "value-list": [
+              {
+                "value": 12289,
+                "description": "CelUnit"
+              },
+              {
+                "value": 12290,
+                "description": "KfcUnit"
+              }
+            ]
+          },
+          {
+            "iid": 2,
+            "type": "urn:cgllc-spec:property:tvoc-unit:00000002:cgllc-cgs2:1",
+            "description": "tvoc-unit",
+            "format": "uint16",
+            "access": ["read", "notify"],
+            "value-list": [
+              {
+                "value": 12296,
+                "description": "none"
+              },
+              {
+                "value": 12293,
+                "description": "ppb"
+              },
+              {
+                "value": 12292,
+                "description": "mg/m3"
+              }
+            ]
+          },
+          {
+            "iid": 3,
+            "type": "urn:cgllc-spec:property:time-mode:00000003:cgllc-cgs2:1",
+            "description": "time-mode",
+            "format": "bool",
+            "access": ["read", "notify"]
+          },
+          {
+            "iid": 4,
+            "type": "urn:cgllc-spec:property:pm-sn:00000004:cgllc-cgs2:1",
+            "description": "pm-sn",
+            "format": "string",
+            "access": ["read", "notify"]
+          },
+          {
+            "iid": 5,
+            "type": "urn:cgllc-spec:property:standard:00000005:cgllc-cgs2:1",
+            "description": "standard",
+            "format": "uint16",
+            "access": ["read", "notify"],
+            "value-list": [
+              {
+                "value": 16384,
+                "description": "STANDARD-CN"
+              },
+              {
+                "value": 16385,
+                "description": "STANDARD-US"
+              }
+            ]
+          },
+          {
+            "iid": 6,
+            "type": "urn:cgllc-spec:property:sensor-states:00000006:cgllc-cgs2:1",
+            "description": "sensor-states",
+            "format": "string",
+            "access": ["read", "notify"]
+          }
+        ]
+      }
+    ]
+  }
+}
