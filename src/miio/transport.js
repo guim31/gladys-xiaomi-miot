@@ -83,6 +83,7 @@ export class MiioTransport {
     this.closed = true;
     for (const socket of this.sockets) {
       try {
+        socket.emit?.('close');
         socket.close();
       } catch {
         // Already closed.
@@ -184,6 +185,8 @@ export class MiioTransport {
     this.sockets.add(socket);
     const inbox = [];
     let wake = null;
+    // Closing the transport wakes an exchange waiting for its reply.
+    socket.once('close', () => wake?.());
     socket.on('message', (message, remote) => {
       inbox.push({ message, remote });
       wake?.();

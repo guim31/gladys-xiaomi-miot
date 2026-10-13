@@ -5,8 +5,10 @@ contributors.
 
 ## What this is
 
-A Gladys Assistant **external integration**: a Node.js service (Node 22+, ESM,
-no build step) that runs in its own sandboxed Docker container and talks to
+A Gladys Assistant **external integration** for the Xiaomi / Mi Home / Mijia
+Wi-Fi devices (purifiers, humidifiers, fans, plugs, lights, sensors), driven
+locally over miIO with the MIoT specifications: a Node.js service (Node 22+,
+ESM, no build step) that runs in its own sandboxed Docker container and talks to
 Gladys through
 [`@gladysassistant/integration-sdk`](https://github.com/GladysAssistant/integration-sdk-js),
 its only runtime dependency. It started from the official JavaScript template.
@@ -16,7 +18,7 @@ its only runtime dependency. It started from the official JavaScript template.
 ```bash
 npm install
 npm test                                  # node --test, the built-in runner
-node --test test/devices.test.js          # one file
+node --test test/hub.test.js              # one file
 node --test --test-name-pattern "plug"    # tests whose name matches
 npm run lint                              # ESLint
 npm run format:check                      # Prettier, as the CI runs it
@@ -31,16 +33,33 @@ pushing.
 ## Architecture
 
 ```
-index.js                          SDK wiring only: handlers registered before connect()
-src/devices/index.js              registry of the device blueprints + dispatch helpers
-src/devices/<type>.js             one device type per file (buildDevice, onPoll, onSetValue...)
-src/scenes.js                     scene action handlers (manifest `scene_actions`)
-src/widgets.js                    dashboard widget handlers (manifest `widgets`)
+index.js                          SDK wiring only (registerHandlers + shutdown)
+src/app.js                        every SDK handler, wired to the hub (the tests use it too)
+src/hub.js                        MiotHub: records, discovery, polling timer, states, commands,
+                                  maintenance trigger, configuration actions, /data
+src/devices.js                    record + translation -> Gladys device (ids, params)
+src/miio/protocol.js              miIO packets: hello, AES-128-CBC (MD5 of the token), checksum
+src/miio/transport.js             UDP exchanges: session (id + stamp), retries, one at a time per host
+src/miot/properties.js            get_properties (chunked, cut down when refused) / set_properties
+src/miot/spec.js                  miot-spec.org client, cache under /data/specs
+src/miot/translate.js             standard MIoT services -> Gladys features (encode/decode)
+src/miot/names.js                 feature names, device kinds, value labels (en, fr, de, es)
+src/miot/quirks.js                per-model differences (chunk size, water level scale)
+src/cloud/client.js               Xiaomi account login (two-step verification), device list
+src/cloud/crypto.js               RC4-drop1024 + SHA signatures of the Xiaomi API
+src/cloud/devices.js              which account devices are kept (Wi-Fi, address, token, no vacuum)
+src/widgets.js                    the `air_quality` dashboard widget
+src/scenes.js                     the `set_property` scene action
+src/texts.js                      connection status and action messages, four languages
 src/config.js                     DEFAULT_CONFIG (mirrors the manifest defaults) + normalization
-src/weather.js                    example driver (Open-Meteo)
+src/store.js                      /data/xiaomi-miot.json (tokens, mode 0600, atomic writes)
+src/problems.js                   repeated failures logged once (start and end)
+scripts/probe.mjs                 read-only probe of the real account, specs and devices
 gladys-assistant-integration.json manifest: name, config_schema, actions, image...
-docs/en.md, docs/fr.md            user documentation, re-hosted by Gladys (mandatory)
-test/                             node --test, against the SDK's fake Gladys (integration-sdk/testing)
+docs/{en,fr,de,es}.md             user documentation, re-hosted by Gladys (en and fr mandatory)
+test/                             node --test, against the SDK's fake Gladys, fake miIO devices,
+                                  fake Xiaomi account and fake miot-spec.org (test/helpers)
+test/fixtures/specs/              real MIoT specifications (homebridge-miot MIT, hass-xiaomi-miot)
 .github/scripts/release.mjs       release helpers (manifest bump, changelog), tested in test/
 ```
 
@@ -70,8 +89,9 @@ test/                             node --test, against the SDK's fake Gladys (in
   `type: "provider"`: 5.1.0). `test/manifest.test.js` ties the manifest to the
   code (defaults, action, scene and widget handlers): change both sides
   together.
-- **User-facing text** is bilingual (English and French): action messages,
-  manifest texts, and `docs/en.md` / `docs/fr.md`, kept in sync.
+- **User-facing text** exists in English, French, German ("du") and Spanish
+  ("usted"): action messages, widget texts, feature names, manifest texts, and
+  `docs/{en,fr,de,es}.md` with the same sections. `test/i18n.test.js` checks it.
 - **Style.** Prettier formats, ESLint catches mistakes. Comments explain why,
   in English. Tests never touch the network.
 
@@ -233,3 +253,84 @@ long, et sur un « Sie »/« Ihr… » de politesse en allemand. Le store exige 
 - Docs `en`, `fr`, `de`, `es` avec les mêmes sections.
 - Chauffe, ouverture, sécurité : ne rien rendre pilotable « comme un thermostat » ou par un assistant
   vocal quand une erreur serait dangereuse (leçon d'OctoPrint).
+
+## Xiaomi MIoT (gladys-xiaomi-miot)
+
+**Protocole miIO** (lu dans python-miio, GPL, sans rien recopier ; code écrit avec `node:crypto`)
+
+- UDP **54321**. Paquet = en-tête de 32 octets (`2131`, longueur totale, 4 octets à 0, id de
+  l'appareil, horodatage, somme MD5) + JSON-RPC chiffré AES-128-CBC/PKCS#7, clé = MD5(jeton),
+  IV = MD5(clé + jeton). Somme = MD5(16 premiers octets + jeton + données).
+- Un « hello » (`21310020` + 28 × `ff`) donne l'id et l'horodatage de l'appareil, à renvoyer
+  dans chaque requête (session gardée tant qu'il répond, 10 min max). Un appareil non associé
+  met son jeton dans la somme de la réponse ; associé, `ff…` ou `00…`.
+- **Mauvais jeton = silence** : l'appareil répond au hello mais ignore la requête. D'où
+  l'erreur `no-answer` (jeton refusé), distincte de `offline` (pas de hello).
+- Les réponses finissent par des octets NUL ; certains firmwares répondent vide quand ils sont
+  occupés. Une requête doit rester sous ~1 Ko : `get_properties` par paquets de 15 au plus ;
+  certains modèles n'en acceptent que 1 à 7 (`src/miot/quirks.js`, d'après hass-xiaomi-miot).
+  Après un premier échec, une propriété seule distingue un mauvais jeton d'un paquet trop
+  gros ; la taille qui marche est gardée dans `/data`.
+- Codes MIoT : 0 fait, 1 accepté (asynchrone), négatif = refus (-4001 non lisible, -4002 non
+  modifiable, -4003 inexistante…).
+- L'unicast traverse le NAT du pont Docker dans les deux sens ; le hello en diffusion passe
+  par la découverte médiée du cœur (`udp-active-broadcast`, port 54321 déclaré dans
+  `network_discovery`) : il donne l'id → l'adresse, pour suivre le DHCP.
+
+**Compte Xiaomi** (d'après hass-xiaomi-miot, Apache-2.0)
+
+- `GET account.xiaomi.com/pass/serviceLogin?sid=xiaomiio&_json=true` → `_sign` ;
+  `POST /pass/serviceLoginAuth2` (MD5 du mot de passe en majuscules) → `location` +
+  `ssecurity`, ou `notificationUrl` (vérification en deux étapes) ou `captchaUrl` ; la
+  `location` donne le cookie `serviceToken`. Réponses préfixées `&&&START&&&`.
+- Deux étapes : l'utilisateur ouvre le lien, y **demande** le code sans le saisir ; on appelle
+  `identity/list` (même URL) → cookie `identity_session`, puis
+  `identity/auth/verifyPhone` (flag 4) ou `verifyEmail` (8) avec le code → `location` ;
+  ensuite `serviceLogin` répond directement avec `ssecurity`. État gardé 15 min en mémoire
+  (un redémarrage oblige à recommencer).
+- API : `POST https://<région>.api.io.mi.com/app/home/device_list` (`cn` sans préfixe),
+  paramètres chiffrés RC4-drop1024 avec le nonce signé (SHA-256 de ssecurity + nonce), signature
+  SHA-1 de `POST&/home/device_list&k=v…&nonce signé`, réponse chiffrée de même. Vérifié contre la
+  référence Python dans `test/cloud.test.js`.
+- Gardés : `did` numérique, `localip`, jeton valide, pas de `parent_id`. Écartés et comptés :
+  aspirateurs (intégrations Xiaomi Home, Roborock, Dreame), Bluetooth (`blt.…`), Zigbee
+  (`lumi.…`), sous-appareils, appareils partagés sans jeton.
+- Le compte n'est appelé qu'à l'import : action, changement des identifiants, premier démarrage
+  sans appareil. Jamais à chaque démarrage : Xiaomi multiplie alors captchas et vérifications.
+
+**Spécifications et traduction**
+
+- `miot-spec.org/miot-spec-v2/instances?status=released` (liste réduite à modèle → URN, gardée
+  une semaine) puis `instance?type=<urn>` ; tout est mis en cache sous `/data/specs` (une
+  spécification ne change jamais pour une URN donnée). Injoignable depuis les sessions de
+  développement : fixtures réelles dans `test/fixtures/specs` (homebridge-miot 2.0.0, MIT,
+  reconstruites depuis ses fichiers d'appareils, et un fichier de hass-xiaomi-miot).
+- Seul l'espace `miot-spec-v2` est traduit (sauf `water-shortage(-fault)`, connu chez deerma) ;
+  les services des fabricants (`urn:zhimi-spec:…`) sont listés par l'action de diagnostic et
+  restent accessibles par l'action de scène `set_property`.
+- Clé de fonctionnalité = `<siid>-<piid>` : permanente. Une liste de valeurs modifiable devient
+  un `text/select` (valeurs en texte, libellés traduits pour les courants : Auto, Sleep,
+  LevelN…). L'humidité cible devient une liste tous les 5 % : le cœur n'a ni consigne
+  d'humidité ni nombre libre modifiable (seuls quelques types ont un curseur, voir
+  `ROW_TYPE_BY_FEATURE_TYPE` du front).
+- `fan/rock-setting` : le front propose les valeurs entre `min` et `max` de l'énumération
+  (0 arrêt, 1 gauche-droite, 2 haut-bas…). L'oscillation horizontale est donc 0..1 ; la
+  verticale reste un `switch/binary` (0..2 proposerait aussi « gauche-droite »).
+- **Radiateur (`heater`) en lecture seule**, y compris par `set_property` (règle de Guilhem :
+  rien de chauffant pilotable comme une lampe ou par un assistant vocal).
+- Niveau d'eau des Smartmi `zhimi.humidifier.ca4` : 0-120 (127 = réservoir absent), ramené en %.
+
+**Choix de conception**
+
+- `transports: ["local"]` : le compte ne sert qu'à récupérer les jetons, ce n'est pas un canal
+  vers les appareils ; avec `cloud`, Gladys afficherait un interrupteur « préférer le local »
+  sans effet.
+- Appareils publiés `should_poll: true` + `poll_frequency` (15 s, 30 s ou 1 min selon la config)
+  pour le repli du cœur ; le minuteur du conteneur fait le travail et `onPoll` saute un
+  appareil lu il y a moins de 90 % d'une période.
+- Déclencheur `maintenance_needed` : une fois par début de raison (filtre ≤ 10 %, réservoir
+  vide, défaut), raisons en cours gardées dans `/data` pour ne pas redéclencher au redémarrage.
+- Widget `air_quality` : pas de texte d'en-tête, pour tenir dans les 8 composants (4 tuiles +
+  1 statut + 3 boutons) ; « ne répond pas » est une ligne du statut.
+- L'action d'ajout manuel demande `miIO.info` à l'appareil : le modèle vient de lui, et la
+  réponse prouve le jeton.

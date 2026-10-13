@@ -1,61 +1,220 @@
-# Demo Devices Template
+# Xiaomi MIoT
 
-This is the user documentation of the integration. Gladys re-hosts this file
-and shows a permanent **Documentation** link to it in the Configuration screen
-(in the user's language, with English as the fallback) — it is when
-configuring that the user needs it most. Keep the short onboarding hints in
-the `section` blocks of the manifest `config_schema`; put the long
-step-by-step (screenshots, troubleshooting…) here.
+Control your Xiaomi, Mi Home and Mijia **Wi-Fi** devices from Gladys, on your
+local network: air purifiers, humidifiers, dehumidifiers, fans, smart plugs,
+switches, lights, air quality monitors, and the sensors built into them. The
+integration reads the public MIoT specification of each model and translates
+its standard services into Gladys features: no model is coded by hand. It
+adds a dashboard widget, a maintenance trigger and a scene action.
 
-## What you get
+The Xiaomi account is only used once, to list your devices with their local
+address and their **token** (the key each device needs). After that,
+everything stays on your network: Gladys talks to each device directly, like
+the Mi Home app does on your Wi-Fi.
 
-Six demo devices show up after installation: a weather station (real data
-from Open-Meteo), a switch, a dimmable light, a smart plug with power
-metering, a motion sensor and a camera.
+It complements the other integrations of the store: the robot vacuums of the
+Mi Home app are driven by the **Xiaomi Home** integration, Roborock and
+Dreame robots by theirs. This integration leaves the vacuums out.
 
-## Configuration
+> **Developed without the hardware: feedback welcome.** This integration was
+> built and tested against real MIoT specifications (published by the
+> homebridge-miot and hass-xiaomi-miot projects) and against simulated
+> devices, not against a real purifier nor a real Xiaomi account. If
+> something does not work as described, please say so on the
+> [Gladys forum](https://community.gladysassistant.com) or in the
+> [issues](https://github.com/guim31/gladys-xiaomi-miot/issues).
 
-1. Open the **Configuration** tab of the integration.
-2. Set the **latitude** and **longitude** the demo weather station should
-   observe (they default to Paris), and pick your temperature unit.
-   The **refresh interval** sets how often the weather station and the
-   plug's power are read: every 5 minutes by default, every minute at most.
-3. Save: the devices appear in the **Discovery** tab, ready to be added.
+Not affiliated with Xiaomi. Xiaomi, Mi Home and Mijia are trademarks of their
+owners.
 
-The **Prefer the local connection** toggle drives the demo plug: it reports
-the channel it actually uses as a badge (local or cloud), with an orange dot
-when it runs degraded (local refused, cloud fallback).
+## What you need
 
-## Actions
+- Gladys Assistant 5.1.0 or later.
+- Xiaomi Wi-Fi devices already set up in the **Mi Home** (Xiaomi Home) app,
+  on the same network as Gladys.
+- Either the e-mail (or phone number) and the password of the Mi Home
+  account, and its region; or, for each device, its IP address and its token
+  (32 hexadecimal characters), found with another tool.
+- Internet access for Gladys at setup: the Xiaomi account (once) and
+  miot-spec.org (once per model, to download its specification).
 
-- **Test the weather provider** — performs a live request to Open-Meteo and
-  shows the current temperature and humidity under the button.
-- **Identify a device** — pick one of your devices in the list and it will
-  signal itself (the demo light "blinks" in the logs).
+## Set up
+
+### With the Xiaomi account
+
+1. Install the integration from the Gladys catalog.
+2. Open its **Configuration** and fill in:
+   - **E-mail or phone number** and **Password** of the Mi Home account;
+   - **Region of the account**: the server region chosen in the Mi Home app
+     (Profile → Settings → Region). **Europe** by default; a device paired in
+     another region is not listed;
+   - **Refresh interval**: how often each device is read, 15 s to 2 min
+     (30 s by default);
+   - **Language of the feature names**: English, French, German or Spanish
+     (French by default). The names of a device and of its features are given
+     when you add it.
+3. Save. The integration logs in and imports the devices at once; to do it
+   again later, click **Import the devices of the Xiaomi account**: the
+   message under the button lists what was imported and what was left out.
+4. **Two-step verification**: if Xiaomi asks for it, the message gives a
+   link. Open it in a browser, ask for the code there (SMS or e-mail), but
+   **do not type it on that page**. Back in Gladys, type the code in the
+   **Verification code** field and click **Import the devices of the Xiaomi
+   account** again, within 15 minutes.
+5. Open the **Discover** tab: one device per Xiaomi device. Click **Add**,
+   pick a room, save.
+
+The password stays in the configuration of the integration; the tokens are
+kept in its private volume (`/data`) and never shown again. You can empty
+the password once the devices are imported: they keep working.
+
+### By IP address and token
+
+No account, or a device the account does not list? In the Configuration
+screen, click **Add a device by IP address and token**, with the address of
+the device (your router lists it) and its token. The integration asks the
+device for its model, which also proves the token. The device appears in the
+**Discover** tab.
+
+### Other actions of the Configuration screen
+
+- **Diagnose the devices**: for each device, its model, address, whether it
+  answers, how many features were translated and which services were left
+  out; and the miIO devices found on the network that the integration does
+  not know.
+- **Forget a device and its token**: removes a device from the integration
+  (sold, replaced). Delete it in Gladys too.
+
+## The Gladys devices
+
+Each device becomes one Gladys device, named after its Mi Home name (or its
+kind and the end of its id). Only what its specification declares is
+published:
+
+| Feature                | What it is                                           | Devices                                       |
+| ---------------------- | ---------------------------------------------------- | --------------------------------------------- |
+| Power                  | On / off                                             | Purifiers, humidifiers, fans, plugs, switches |
+| Light                  | On / off                                             | Lights                                        |
+| Mode                   | The mode list of the device (Auto, Sleep, Favorite…) | Purifiers, humidifiers, fans                  |
+| Fan speed              | A level list, or a slider                            | Purifiers, humidifiers, fans                  |
+| Horizontal oscillation | Oscillation on / off                                 | Fans                                          |
+| Vertical oscillation   | Oscillation on / off                                 | Fans                                          |
+| Target humidity        | A list every 5 %                                     | Humidifiers, dehumidifiers                    |
+| Water level            | Water left in the tank, in %                         | Humidifiers                                   |
+| Water tank empty       | Yes / no                                             | Some humidifiers                              |
+| Target temperature     | The setpoint, shown only                             | Heaters                                       |
+| Fault                  | What the device reports, or _No fault_               | Most devices                                  |
+| Temperature            | °C                                                   | Devices with a sensor                         |
+| Humidity               | %                                                    | Devices with a sensor                         |
+| PM2.5 / PM10           | µg/m³                                                | Purifiers, monitors                           |
+| CO2                    | ppm                                                  | Monitors                                      |
+| Illuminance            | lux                                                  | Devices with a light sensor                   |
+| Filter life            | % left                                               | Purifiers                                     |
+| Filter time left       | Days or hours                                        | Purifiers                                     |
+| Battery                | %                                                    | Battery monitors                              |
+| Child lock             | Locks the buttons of the device                      | Most devices                                  |
+| Power draw             | Watts                                                | Plugs with a power meter                      |
+| Brightness             | %                                                    | Lights                                        |
+| Color temperature      | Kelvins, within the range of the model               | Lights                                        |
+| Color                  | The colour of a colour light                         | Colour lights                                 |
+
+- **A heater is shown, never driven**: its power and setpoint are read only.
+  A heater driven like a light by a scene, a dashboard or a voice assistant
+  could heat an empty room or start next to something; use its own buttons
+  or the Mi Home app.
+- What the translation leaves out (the buzzer, the display, the indicator
+  light, the vendor settings) is listed by **Diagnose the devices** and stays
+  reachable with the **Set a MIoT property** scene action.
+- When a device no longer answers, its badge says it is unreachable; it
+  comes back by itself.
+
+## Dashboard widget
+
+Add the **Air quality** widget to a dashboard and choose a device in its
+settings. It shows up to four live tiles (PM2.5, CO2, temperature, humidity,
+water level, filter life as a gauge, in this order), the state of the device
+(on, off or not answering), its mode and fan speed, a fault when there is
+one, and buttons:
+
+- **Turn on** / **Turn off**, which switches the device whatever the widget
+  showed (not on a heater);
+- the first two modes of the device (for example _Auto_ and _Sleep_); the
+  running one has a tick icon.
 
 ## Scenes
 
-The integration adds its own cards to the scene editor (Gladys 5.1 or
-later), under the **Integrations** category:
+### Trigger
 
-- **Motion detected** (trigger) — starts the scene when a demo motion sensor
-  sees something move. Optionally pick the sensor and what moved (person,
-  animal); left empty, any detection matches. The following actions can
-  read what moved with `{{triggerEvent.data.target}}`.
-- **Identify a device** (action) — makes the chosen device signal itself.
-  It returns whether the device could signal itself, so the following
-  actions can depend on it.
+**Xiaomi device needs attention**: fired once when a reason starts, and again
+only after it ended. Filters:
 
-## Dashboard
+- **Xiaomi device**: one device, or any;
+- **Reason**: **Filter to replace** (filter life at 10 % or less), **Water
+  tank empty** (the tank alarm, or a water level at 0 %), **Fault** (the
+  device reports a fault); empty for all.
 
-Add the **Demo status** widget to a dashboard: it shows the live
-temperature of the weather station and the power of the office plug, the
-connection the plug currently uses (orange when degraded) and the observed
-location. Its **Identify the light** button makes the demo light signal
-itself.
+The variables give the name of the device (`device_name`), the reason
+(`filter`, `water` or `fault`) and a detail (the filter life, the fault
+reported). The reasons in progress are remembered across restarts.
+
+### Action
+
+**Set a MIoT property**: writes any writable property of a device by its
+number on miot-spec.org (`siid.piid`, for example `6.1` for the buzzer of a
+Mi Air Purifier 4), with a value as the specification expects (`true` /
+`false`, a number or a text). The action refuses a property that does not
+exist, is read only, or a value out of its range; and any heater. It gives
+the value written to the next actions.
+
+To find the numbers: open `https://home.miot-spec.com/spec/<model>` (for
+example `zhimi.airp.mb5`), or run **Diagnose the devices**, which names the
+services left out with their number.
+
+### Scene ideas
+
+- **Filter reminder**: _Xiaomi device needs attention_, reason _Filter to
+  replace_ → send the message "{{device_name}}: filter at {{detail}}".
+- **Quiet nights**: every day at 22:00 → set the **Mode** of the purifier to
+  _Sleep_, then _Set a MIoT property_ `6.1` = `false` to mute its buzzer.
+- **Breathe better**: when the **PM2.5** of the air monitor goes above 35 →
+  turn the purifier on, mode _Auto_.
+- **Humidifier refill**: _Xiaomi device needs attention_, reason _Water tank
+  empty_ → send a message, and turn the humidifier off.
 
 ## Troubleshooting
 
-The integration logs everything it does: check the integration logs from the
-Gladys UI (or `docker logs` on the host) with `LOG_LEVEL=debug` for the full
-detail.
+- **No device imported**: check the region of the account (a Xiaomi account
+  is tied to a region), and the message under the button: vacuums, Bluetooth
+  and Zigbee devices are left out on purpose.
+- **"Xiaomi asks for a captcha"**: log in once to the Mi Home app from the
+  same network, wait a few minutes, try again; or add the devices by hand.
+- **A device does not answer**: check that it is on the same network as
+  Gladys (a guest network or an isolated IoT VLAN blocks it), and give it a
+  fixed address in your router. A device that changes address is found again
+  within 15 minutes by a discovery broadcast sent by Gladys (UDP port 54321,
+  which is why the install screen asks for this permission).
+- **"refuses its token"**: the device was reset or paired again in Mi Home,
+  its token changed: click **Import the devices of the Xiaomi account** again.
+- **"specification missing"**: miot-spec.org has nothing for this model, or
+  could not be reached; the integration tries again every 15 minutes. Old
+  miIO-only models (before MIoT) are not supported.
+- The integration logs what it finds and what does not answer (more with
+  `LOG_LEVEL=debug`): open its logs from the Gladys interface.
+
+## Limits
+
+- **Wi-Fi devices only**: the Bluetooth and Zigbee devices that go through a
+  Xiaomi gateway have no address of their own, and are left out.
+- Robot vacuums are left out (see the Xiaomi Home, Roborock and Dreame
+  integrations).
+- Air conditioners, thermostats, kettles, cookers and other kinds are not
+  translated yet: they appear only if they have one of the standard services
+  above (a plug, a sensor…).
+- No push: each device is read every 30 seconds by default, one grouped
+  request per device; a change made in Mi Home shows up at the next reading.
+- The Xiaomi servers are only called when you import the devices (and when
+  the account details change); miot-spec.org once per model. Neither is
+  needed afterwards.
+- Developed without the hardware: the per-model differences that the
+  specifications do not tell (some report their power in other units) may
+  need adjustments; please report them.

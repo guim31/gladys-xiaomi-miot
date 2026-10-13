@@ -7,15 +7,16 @@
 // box already has every control; the widget gathers what matters for the air
 // of a room in one card.
 //
-// Budget (8 components, 2 texts, 6 tiles, 1 status, 4 buttons): a caption,
-// up to four tiles, one status list, the power button and up to two mode
-// buttons. The running mode is marked by its icon (`check-circle`), never by
+// Budget (8 components, 2 texts, 6 tiles, 1 status, 4 buttons): up to four
+// tiles, one status list (with "not answering" when the device is lost),
+// the power button and up to two mode buttons — eight at most. The running mode is marked by its icon (`check-circle`), never by
 // the button style: `primary` is invisible in dark mode.
 // -----------------------------------------------------------------------------
 
 import { WIDGET_COLORS } from '@gladysassistant/integration-sdk';
 import { deviceIds } from './devices.js';
 import { WIDGET_KEY } from './hub.js';
+import { LANGUAGES, namesFor, valueLabel } from './miot/names.js';
 
 const ACTIVE_ICON = 'check-circle';
 const MODE_ACTION_PREFIX = 'mode_';
@@ -81,6 +82,15 @@ const byRole = (translation, role) =>
   translation.features.find((feature) => feature.role === role) ?? null;
 
 /** The current value of a select feature, as its option. */
+/** A feature name in the widget's language (the device keeps its own). */
+const nameIn = (feature, language) => namesFor(language)[feature.role] ?? feature.name;
+
+/** An option label in the widget's language, from the specification. */
+function optionLabel(feature, option, language) {
+  const entry = feature.prop?.['value-list']?.find((item) => String(item.value) === option.value);
+  return (entry && valueLabel(entry.description, language)) || option.label;
+}
+
 function currentOption(hub, record, feature) {
   const value = hub.featureValue(record, feature);
   return feature.supported_options?.find((option) => option.value === value?.text) ?? null;
@@ -96,11 +106,7 @@ async function get(hub, { settings, language = 'en' }) {
     return message(TEXT.noSpec, language);
   }
   const ids = deviceIds(hub.gladys, record.did);
-  const caption = [translation.kindName, record.host];
-  if (record.reachable === false) {
-    caption.push(t(TEXT.unreachable, language));
-  }
-  const components = [{ type: 'text', variant: 'caption', text: caption.join(' · ') }];
+  const components = [];
 
   let tiles = 0;
   for (const { role, icon, gauge } of TILE_ROLES) {
@@ -111,15 +117,31 @@ async function get(hub, { settings, language = 'en' }) {
     tiles += 1;
     components.push(
       gauge
-        ? { type: 'gauge', device_feature: ids.feature(feature.key), label: feature.name }
-        : { type: 'value', device_feature: ids.feature(feature.key), label: feature.name, icon },
+        ? {
+            type: 'gauge',
+            device_feature: ids.feature(feature.key),
+            label: nameIn(feature, language),
+          }
+        : {
+            type: 'value',
+            device_feature: ids.feature(feature.key),
+            label: nameIn(feature, language),
+            icon,
+          },
     );
   }
 
   const power = byRole(translation, 'power') ?? byRole(translation, 'light');
   const lit = power ? hub.featureValue(record, power) === 1 : null;
   const items = [];
-  if (power) {
+  if (record.reachable === false) {
+    items.push({
+      label: t(TEXT.state, language),
+      icon: 'wifi-off',
+      value: t(TEXT.unreachable, language),
+      color: WIDGET_COLORS.DANGER,
+    });
+  } else if (power) {
     items.push({
       label: t(TEXT.state, language),
       icon: 'power',
@@ -131,18 +153,25 @@ async function get(hub, { settings, language = 'en' }) {
     const feature = byRole(translation, role);
     const value = feature ? hub.featureValue(record, feature) : undefined;
     const label = feature?.supported_options
-      ? currentOption(hub, record, feature)?.label
+      ? (() => {
+          const option = currentOption(hub, record, feature);
+          return option ? optionLabel(feature, option, language) : null;
+        })()
       : typeof value === 'object'
         ? value.text
         : value;
     if (feature && label !== undefined && label !== null) {
-      items.push({ label: feature.name, icon: 'sliders', value: String(label).slice(0, 40) });
+      items.push({
+        label: nameIn(feature, language),
+        icon: 'sliders',
+        value: String(label).slice(0, 40),
+      });
     }
   }
   const fault = byRole(translation, 'fault');
   if (fault && record.alerts.has('fault')) {
     items.push({
-      label: fault.name,
+      label: nameIn(fault, language),
       icon: 'alert-triangle',
       value: String(hub.featureValue(record, fault)?.text ?? '').slice(0, 40) || '?',
       color: WIDGET_COLORS.DANGER,
@@ -168,7 +197,7 @@ async function get(hub, { settings, language = 'en' }) {
     mode.supported_options.slice(0, MAX_MODE_BUTTONS).forEach((option, index) => {
       components.push({
         type: 'button',
-        label: option.label.slice(0, 24),
+        label: optionLabel(mode, option, language).slice(0, 24),
         icon: lit && option.value === active ? ACTIVE_ICON : 'play',
         style: 'secondary',
         // Numbered keys: the core drops a button whose action key is taken.
@@ -210,9 +239,9 @@ async function action(hub, { actionKey, params = {}, settings }) {
     await call(mode, option.value);
     return {
       message: Object.fromEntries(
-        Object.entries(TEXT.modeSet).map(([language, prefix]) => [
+        LANGUAGES.map((language) => [
           language,
-          `${prefix}${option.label}`,
+          `${TEXT.modeSet[language]}${optionLabel(mode, option, language)}`,
         ]),
       ),
     };

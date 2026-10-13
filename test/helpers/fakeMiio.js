@@ -31,6 +31,10 @@ export const FIXTURES = Object.fromEntries(
 
 /** A plausible value for a property: false, the bottom of its range, its first option. */
 function defaultValue(prop) {
+  // A new filter: the bottom of the range would start the maintenance alert.
+  if (/:filter-(life-level|left-time):/.test(prop.type) && Array.isArray(prop['value-range'])) {
+    return prop['value-range'][1];
+  }
   if (prop.format === 'bool') {
     return false;
   }

@@ -63,7 +63,7 @@ export const ACTION_TEXT = {
       `No Wi-Fi device with a local address on this account, in the region “${region}”. A Xiaomi account is tied to a region: check it in the configuration.`,
     leftOut: (vacuums, noAddress, noToken) =>
       `Left out: ${vacuums} robot vacuum(s) (the Xiaomi Home, Roborock and Dreame integrations drive them), ${noAddress} Bluetooth or Zigbee device(s) without an address of their own, ${noToken} shared device(s) without a token.`,
-    nextStep: 'The devices are in the Discovery tab of the integration.',
+    nextStep: 'The devices are in the Discover tab of the integration.',
     invalidIp: 'Enter the IPv4 address of the device, e.g. 192.168.1.20.',
     invalidToken: 'The token is 32 hexadecimal characters (0-9, a-f).',
     noAnswerAt: (ip) =>
@@ -71,7 +71,7 @@ export const ACTION_TEXT = {
     wrongToken: (ip) => `The device at ${ip} answers, but does not accept this token.`,
     vacuum: (model) =>
       `${model} is a robot vacuum: the Xiaomi Home, Roborock and Dreame integrations of the store drive them.`,
-    added: (model, ip) => `${model} added (${ip}). It is in the Discovery tab of the integration.`,
+    added: (model, ip) => `${model} added (${ip}). It is in the Discover tab of the integration.`,
     noSpec: (model) =>
       `but miot-spec.org has no specification for ${model}: it cannot be translated yet.`,
     forgotten: (name) =>
@@ -157,7 +157,7 @@ export const ACTION_TEXT = {
       `Kein WLAN-Gerät mit lokaler Adresse in diesem Konto, in der Region „${region}“. Ein Xiaomi-Konto gehört zu einer Region: Prüfe sie in der Konfiguration.`,
     leftOut: (vacuums, noAddress, noToken) =>
       `Ausgelassen: ${vacuums} Saugroboter (die Integrationen Xiaomi Home, Roborock und Dreame steuern sie), ${noAddress} Bluetooth- oder Zigbee-Gerät(e) ohne eigene Adresse, ${noToken} geteilte(s) Gerät(e) ohne Token.`,
-    nextStep: 'Die Geräte stehen im Reiter „Erkennung“ der Integration.',
+    nextStep: 'Die Geräte stehen im Reiter „Entdecken“ der Integration.',
     invalidIp: 'Gib die IPv4-Adresse des Geräts ein, z. B. 192.168.1.20.',
     invalidToken: 'Das Token besteht aus 32 hexadezimalen Zeichen (0-9, a-f).',
     noAnswerAt: (ip) =>
@@ -166,7 +166,7 @@ export const ACTION_TEXT = {
     vacuum: (model) =>
       `${model} ist ein Saugroboter: Die Integrationen Xiaomi Home, Roborock und Dreame im Store steuern sie.`,
     added: (model, ip) =>
-      `${model} hinzugefügt (${ip}). Es steht im Reiter „Erkennung“ der Integration.`,
+      `${model} hinzugefügt (${ip}). Es steht im Reiter „Entdecken“ der Integration.`,
     noSpec: (model) =>
       `aber miot-spec.org hat keine Spezifikation für ${model}: Es kann noch nicht übersetzt werden.`,
     forgotten: (name) =>
@@ -205,7 +205,7 @@ export const ACTION_TEXT = {
       `Ningún dispositivo Wi-Fi con dirección local en esta cuenta, en la región «${region}». Una cuenta Xiaomi está ligada a una región: compruébela en la configuración.`,
     leftOut: (vacuums, noAddress, noToken) =>
       `Descartados: ${vacuums} robot(s) aspirador(es) (las integraciones Xiaomi Home, Roborock y Dreame los controlan), ${noAddress} dispositivo(s) Bluetooth o Zigbee sin dirección propia, ${noToken} dispositivo(s) compartido(s) sin token.`,
-    nextStep: 'Los dispositivos están en la pestaña Descubrimiento de la integración.',
+    nextStep: 'Los dispositivos están en la pestaña Descubrir de la integración.',
     invalidIp: 'Introduzca la dirección IPv4 del dispositivo, p. ej. 192.168.1.20.',
     invalidToken: 'El token tiene 32 caracteres hexadecimales (0-9, a-f).',
     noAnswerAt: (ip) =>
@@ -214,7 +214,7 @@ export const ACTION_TEXT = {
     vacuum: (model) =>
       `${model} es un robot aspirador: las integraciones Xiaomi Home, Roborock y Dreame del store los controlan.`,
     added: (model, ip) =>
-      `${model} añadido (${ip}). Está en la pestaña Descubrimiento de la integración.`,
+      `${model} añadido (${ip}). Está en la pestaña Descubrir de la integración.`,
     noSpec: (model) =>
       `pero miot-spec.org no tiene especificación para ${model}: todavía no se puede traducir.`,
     forgotten: (name) =>

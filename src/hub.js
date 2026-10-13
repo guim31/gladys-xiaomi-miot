@@ -537,6 +537,7 @@ export class MiotHub {
     this.gladys.forgetPublishedStates(device.external_id);
     await this.refresh(record);
     await this.publishStates(record);
+    await this.checkAlerts(record);
     await this.publishTransports([record]);
     this.requestWidgetRefresh();
   }
@@ -869,7 +870,15 @@ export class MiotHub {
    * @param {{ code?: string }} fields
    * @returns {Promise<object>} the message, in four languages
    */
-  async importFromCloud({ code } = {}, { background = false } = {}) {
+  importFromCloud(fields = {}, options = {}) {
+    // One login at a time: the automatic import and the action would cross
+    // their two-step verifications.
+    const run = (this.importing ?? Promise.resolve()).then(() => this.runImport(fields, options));
+    this.importing = run.catch(() => {});
+    return run;
+  }
+
+  async runImport({ code } = {}, { background = false } = {}) {
     const config = this.config;
     if (!config.hasCredentials) {
       return localized((text) => text.notConfigured);

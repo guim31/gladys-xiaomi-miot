@@ -105,7 +105,7 @@ test('the import action: devices saved with their token (file 0600), published, 
     ack.data.message.en,
     /^2 device\(s\) imported: Mi zhimi\.airp\.mb5, Mi chuangmi\.plug\.212a01\./,
   );
-  assert.match(ack.data.message.en, /Discovery tab/);
+  assert.match(ack.data.message.en, /Discover tab/);
   assert.match(ack.data.message.fr, /^2 appareil\(s\) importé\(s\)/);
   const file = join(world.dataDir, 'xiaomi-miot.json');
   const saved = JSON.parse(await readFile(file, 'utf8'));
