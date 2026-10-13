@@ -87,7 +87,7 @@ Gladys ◄── devices, states ── hub ── miIO UDP 54321 ──► the 
 
 ## Checked, and what was not
 
-Checked in this repository (`npm test`, 100+ tests): the packet format
+Checked in this repository (`npm test`, about a hundred tests): the packet format
 against packets built by hand, the RC4 signatures against the Python
 reference, the login and two-step verification flows against a fake account
 following the real answers, the translation of 14 real specifications, every
