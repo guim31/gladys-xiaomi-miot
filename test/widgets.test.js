@@ -1,77 +1,172 @@
+// -----------------------------------------------------------------------------
+// The "Air quality" widget: a content the core renders exactly as sent
+// (validateWidgetContent), tiles bound to features the device really has,
+// and buttons that drive the device.
+// -----------------------------------------------------------------------------
+
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { validateWidgetContent } from '@gladysassistant/integration-sdk';
-import { createFakeGladys } from '@gladysassistant/integration-sdk/testing';
-import { buildDiscoveredDevices } from '../src/devices/index.js';
-import { simulateLanSession } from '../src/devices/plug.js';
-import { DEMO_STATUS_WIDGET, WIDGETS, refreshWidgets } from '../src/widgets.js';
-import { normalizeConfig } from '../src/config.js';
+import { WIDGET_KEY } from '../src/hub.js';
+import { TEXT } from '../src/widgets.js';
+import {
+  FakeMiio,
+  HEATER,
+  HUMIDIFIER,
+  PLUG,
+  PURIFIER,
+  allDevices,
+  createAll,
+  createWorld,
+  deviceId,
+} from './helpers/world.js';
 
-const gladys = createFakeGladys();
-const config = normalizeConfig();
-const demoStatus = WIDGETS[DEMO_STATUS_WIDGET];
+async function created(t, options) {
+  const world = await createWorld(options);
+  t.after(() => world.app.stop());
+  await createAll(world);
+  return world;
+}
 
-// What the SDK passes to onWidgetGet, plus the config index.js adds.
-const getContent = (cfg = config) =>
-  demoStatus.get(gladys, { settings: {}, language: 'en', units: 'metric', config: cfg });
+const widget = (world, settings, language = 'en') =>
+  world.fake.widgetGet(WIDGET_KEY, { settings, language, units: 'metric' });
 
-test('the demo_status content is rendered exactly as sent', async () => {
-  // [] = nothing the core would drop, truncate or trim to the content budget.
-  assert.deepEqual(validateWidgetContent(await getContent()), []);
-});
-
-test('the degraded plug connection content is valid too', async () => {
-  simulateLanSession(false);
-  try {
-    const content = await getContent();
-    assert.deepEqual(validateWidgetContent(content), []);
-    const status = content.components.find((component) => component.type === 'status');
-    assert.ok(
-      status.items.some((item) => item.color === 'warning'),
-      'degraded shows a warning',
-    );
-  } finally {
-    simulateLanSession(true);
+test('every device gives a valid content, bound to features it has, in four languages', async (t) => {
+  const world = await created(t, { devices: allDevices() });
+  for (const device of world.fake.discoveredDevices) {
+    const featureIds = new Set(device.features.map((feature) => feature.external_id));
+    for (const language of ['en', 'fr', 'de', 'es']) {
+      const ack = await widget(world, { device: device.external_id }, language);
+      assert.equal(ack.success, true, ack.error);
+      const { content } = ack.data;
+      assert.deepEqual(validateWidgetContent(content), [], `${device.name} (${language})`);
+      for (const component of content.components) {
+        if (component.device_feature) {
+          assert.ok(
+            featureIds.has(component.device_feature),
+            `${device.name}: ${component.device_feature}`,
+          );
+        }
+        if (component.type === 'button') {
+          // The running mode is told by the icon, never by the style (#3153).
+          assert.equal(component.style, 'secondary');
+        }
+      }
+      const keys = content.components.filter((c) => c.action).map((c) => c.action.key);
+      assert.equal(new Set(keys).size, keys.length, 'action keys are unique');
+    }
   }
 });
 
-test('the live tiles reference features the integration publishes', async () => {
-  const featureIds = new Set(
-    buildDiscoveredDevices(gladys, config).flatMap((device) =>
-      device.features.map((feature) => feature.external_id),
-    ),
+test('a purifier: PM2.5, temperature, humidity, filter gauge, state, power and modes', async (t) => {
+  const purifier = new FakeMiio(PURIFIER, '192.0.2.10', { values: { 2.1: true, 2.4: 0 } });
+  const world = await created(t, { devices: [purifier] });
+  const device = deviceId(world.gladys, purifier.did);
+  const { content: data } = (await widget(world, { device }, 'fr')).data;
+  const types = data.components.map((component) => component.type);
+  assert.deepEqual(types, [
+    'value',
+    'value',
+    'value',
+    'gauge',
+    'status',
+    'button',
+    'button',
+    'button',
+  ]);
+  const [pm25] = data.components;
+  assert.equal(pm25.label, 'PM2,5');
+  const status = data.components.find((component) => component.type === 'status');
+  assert.deepEqual(
+    status.items.map((item) => [item.label, item.value]),
+    [
+      ['État', 'En marche'],
+      ['Mode', 'Auto'],
+      ['Vitesse de ventilation', 'Niveau 1'],
+    ],
   );
-  const liveTiles = (await getContent()).components.filter((c) => c.device_feature);
-  assert.ok(liveTiles.length > 0, 'the template demonstrates a device-bound tile');
-  for (const tile of liveTiles) {
-    assert.ok(featureIds.has(tile.device_feature), `unknown feature ${tile.device_feature}`);
-  }
+  const buttons = data.components.filter((component) => component.type === 'button');
+  assert.deepEqual(
+    buttons.map((button) => [button.label, button.icon]),
+    [
+      ['Éteindre', 'power'],
+      ['Auto', 'check-circle'],
+      ['Nuit', 'play'],
+    ],
+  );
+
+  // Tap "Sleep", then the power button.
+  const mode = await world.fake.widgetAction(
+    WIDGET_KEY,
+    'mode_2',
+    { value: '1' },
+    { settings: { device } },
+  );
+  assert.equal(mode.success, true, mode.error);
+  assert.equal(purifier.values['2.4'], 1);
+  assert.deepEqual(mode.data, {
+    message: { en: 'Mode: Sleep', fr: 'Mode : Nuit', de: 'Modus: Schlafen', es: 'Modo: Noche' },
+  });
+  const off = await world.fake.widgetAction(WIDGET_KEY, 'power', {}, { settings: { device } });
+  assert.equal(off.success, true);
+  assert.equal(purifier.values['2.1'], false);
+  assert.deepEqual(off.data, { message: TEXT.switchedOff });
 });
 
-test('every button action of the content is handled and answers a short toast', async () => {
-  const buttons = (await getContent()).components.filter((c) => c.type === 'button' && c.action);
-  assert.ok(buttons.length > 0, 'the template demonstrates a widget action');
-  for (const { action } of buttons) {
-    const message = await demoStatus.action(gladys, {
-      actionKey: action.key,
-      params: action.params ?? {},
-      settings: {},
-      config,
-    });
-    assert.ok(message.en, 'the toast carries at least the mandatory `en` text');
-    assert.ok(message.en.length <= 200, 'toasts are capped at 200 characters');
-  }
-});
-
-test('an unknown widget action fails, so the user sees the error', async () => {
-  await assert.rejects(
-    demoStatus.action(gladys, { actionKey: 'unknown', params: {}, settings: {}, config }),
-    /Unknown widget action/,
+test('a heater has no power button; a plug shows its state only', async (t) => {
+  const heater = new FakeMiio(HEATER, '192.0.2.12');
+  const plug = new FakeMiio(PLUG, '192.0.2.11');
+  const world = await created(t, { devices: [heater, plug] });
+  const heaterContent = (await widget(world, { device: deviceId(world.gladys, heater.did) })).data
+    .content;
+  assert.ok(!heaterContent.components.some((component) => component.type === 'button'));
+  const refused = await world.fake.widgetAction(
+    WIDGET_KEY,
+    'power',
+    {},
+    {
+      settings: { device: deviceId(world.gladys, heater.did) },
+    },
+  );
+  assert.equal(refused.success, false);
+  const plugContent = (await widget(world, { device: deviceId(world.gladys, plug.did) })).data
+    .content;
+  assert.deepEqual(
+    plugContent.components.map((component) => component.type),
+    ['status', 'button'],
   );
 });
 
-test('refreshWidgets nudges every widget', () => {
-  const fresh = createFakeGladys();
-  refreshWidgets(fresh);
-  assert.deepEqual(fresh.fake.widgetRefreshes, Object.keys(WIDGETS));
+test('a humidifier shows its water level; a device not chosen or unknown says so', async (t) => {
+  const humidifier = new FakeMiio('zhimi.humidifier.ca4', '192.0.2.13', { values: { 2.7: 60 } });
+  const other = new FakeMiio(HUMIDIFIER, '192.0.2.14');
+  const world = await created(t, { devices: [humidifier, other] });
+  const { content: data } = (
+    await widget(world, { device: deviceId(world.gladys, humidifier.did) })
+  ).data;
+  assert.ok(data.components.some((component) => component.label === 'Water level'));
+
+  const none = await widget(world, {});
+  assert.equal(none.data.content.components[0].text, TEXT.pick.en);
+  const unknown = await widget(world, { device: deviceId(world.gladys, 999) });
+  assert.equal(unknown.data.content.components[0].text, TEXT.unknown.en);
+});
+
+test('a device that stops answering says it in the status', async (t) => {
+  const plug = new FakeMiio(PLUG, '192.0.2.11');
+  const world = await created(t, { devices: [plug], scan: false });
+  plug.online = false;
+  await world.hub.pollAll();
+  await world.hub.pollAll();
+  await world.hub.idle();
+  const { content: data } = (await widget(world, { device: deviceId(world.gladys, plug.did) }))
+    .data;
+  const status = data.components.find((component) => component.type === 'status');
+  assert.deepEqual(status.items[0], {
+    label: 'State',
+    icon: 'wifi-off',
+    value: 'not answering',
+    color: 'danger',
+  });
+  assert.ok(world.fake.widgetRefreshes.includes(WIDGET_KEY));
 });

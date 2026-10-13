@@ -1,67 +1,232 @@
-# Template de démonstration
+# Xiaomi MIoT
 
-Ceci est la documentation utilisateur de l'intégration. Gladys ré-héberge ce
-fichier et affiche un lien **Documentation** permanent vers lui dans l'écran
-de configuration (dans la langue de l'utilisateur, avec l'anglais en repli) —
-c'est au moment de configurer que l'utilisateur en a le plus besoin. Gardez
-les courtes indications d'accueil dans les blocs `section` du `config_schema`
-du manifest ; mettez ici le pas-à-pas détaillé (captures d'écran, dépannage…).
+Pilotez vos appareils **Wi-Fi** Xiaomi, Mi Home et Mijia depuis Gladys, sur
+votre réseau local : purificateurs d’air, humidificateurs, déshumidificateurs,
+ventilateurs, prises connectées, interrupteurs, lampes, moniteurs de qualité
+de l’air, et les capteurs qu’ils intègrent. L’intégration lit la spécification
+MIoT publique de chaque modèle et traduit ses services standard en
+fonctionnalités Gladys : aucun modèle n’est codé à la main. Elle ajoute un
+widget de tableau de bord, un déclencheur d’entretien et une action de scène.
 
-## Ce que vous obtenez
+Le compte Xiaomi ne sert qu’une fois, pour lister vos appareils avec leur
+adresse locale et leur **jeton** (la clé dont chaque appareil a besoin).
+Ensuite, tout reste sur votre réseau : Gladys parle directement à chaque
+appareil, comme l’application Mi Home le fait sur votre Wi-Fi.
 
-Six appareils de démonstration apparaissent après l'installation : une
-station météo (vraies données Open-Meteo), un interrupteur, une lampe
-variable, une prise connectée avec mesure de puissance, un détecteur de
-mouvement et une caméra.
+Elle complète les autres intégrations du store : les aspirateurs robots de
+l’application Mi Home sont pilotés par l’intégration **Xiaomi Home**, les
+robots Roborock et Dreame par les leurs. Cette intégration laisse les
+aspirateurs de côté.
 
-## Configuration
+> **Developed without the hardware: feedback welcome.** Cette intégration a
+> été construite et testée avec de vraies spécifications MIoT (publiées par
+> les projets homebridge-miot et hass-xiaomi-miot) et avec des appareils
+> simulés, pas avec un vrai purificateur ni un vrai compte Xiaomi. Si quelque
+> chose ne marche pas comme décrit, dites-le sur le
+> [forum Gladys](https://community.gladysassistant.com) ou dans les
+> [issues](https://github.com/guim31/gladys-xiaomi-miot/issues).
 
-1. Ouvrez l'onglet **Configuration** de l'intégration.
-2. Renseignez la **latitude** et la **longitude** que la station météo de
-   démonstration doit observer (Paris par défaut), et choisissez votre unité
-   de température. L'**intervalle de rafraîchissement** règle la fréquence
-   de lecture de la station météo et de la puissance de la prise : toutes
-   les 5 minutes par défaut, toutes les minutes au plus.
-3. Enregistrez : les appareils apparaissent dans l'onglet **Découverte**,
-   prêts à être ajoutés.
+Sans lien avec Xiaomi. Xiaomi, Mi Home et Mijia sont des marques de leurs
+propriétaires.
 
-Le réglage **Préférer la connexion locale** pilote la prise de
-démonstration : elle affiche en badge le canal réellement utilisé (local ou
-cloud), avec un point orange quand elle fonctionne en mode dégradé (local
-refusé, bascule cloud).
+## Ce qu’il faut
 
-## Actions
+- Gladys Assistant 5.1.0 ou plus récent.
+- Des appareils Wi-Fi Xiaomi déjà installés dans l’application **Mi Home**
+  (Xiaomi Home), sur le même réseau que Gladys.
+- Soit l’e-mail (ou le numéro de téléphone) et le mot de passe du compte
+  Mi Home, et sa région ; soit, pour chaque appareil, son adresse IP et son
+  jeton (32 caractères hexadécimaux), obtenu avec un autre outil.
+- Un accès à Internet pour Gladys à l’installation : le compte Xiaomi (une
+  fois) et miot-spec.org (une fois par modèle, pour télécharger sa
+  spécification).
 
-- **Tester le fournisseur météo** — effectue une requête en direct vers
-  Open-Meteo et affiche la température et l'humidité actuelles sous le
-  bouton.
-- **Identifier un appareil** — choisissez un de vos appareils dans la liste
-  et il se signale (la lampe de démonstration « clignote » dans les logs).
+## Installation
+
+### Avec le compte Xiaomi
+
+1. Installez l’intégration depuis le catalogue de Gladys.
+2. Ouvrez sa **Configuration** et renseignez :
+   - **E-mail ou numéro de téléphone** et **Mot de passe** du compte Mi Home ;
+   - **Région du compte** : la région de serveur choisie dans l’application
+     Mi Home (Profil → Paramètres → Région). **Europe** par défaut ; un
+     appareil associé dans une autre région n’est pas listé ;
+   - **Intervalle de rafraîchissement** : fréquence de lecture de chaque
+     appareil, de 15 s à 2 min (30 s par défaut) ;
+   - **Langue des noms de fonctionnalités** : anglais, français, allemand ou
+     espagnol (français par défaut). Les noms d’un appareil et de ses
+     fonctionnalités sont donnés quand vous l’ajoutez.
+3. Enregistrez. L’intégration se connecte et importe aussitôt les appareils ;
+   pour recommencer plus tard, cliquez sur **Importer les appareils du compte
+   Xiaomi** : le message sous le bouton liste ce qui a été importé et ce qui a
+   été laissé de côté.
+4. **Vérification en deux étapes** : si Xiaomi la demande, le message donne un
+   lien. Ouvrez-le dans un navigateur, demandez-y le code (SMS ou e-mail),
+   mais **ne le saisissez pas sur cette page**. De retour dans Gladys, tapez le
+   code dans le champ **Code de vérification** et cliquez de nouveau sur
+   **Importer les appareils du compte Xiaomi**, dans les 15 minutes.
+5. Ouvrez l’onglet **Découverte** : un appareil par appareil Xiaomi. Cliquez
+   sur **Ajouter**, choisissez une pièce, enregistrez.
+
+Le mot de passe reste dans la configuration de l’intégration ; les jetons sont
+gardés dans son volume privé (`/data`) et jamais réaffichés. Vous pouvez vider
+le mot de passe une fois les appareils importés : ils continuent de marcher.
+
+### Par adresse IP et jeton
+
+Pas de compte, ou un appareil que le compte ne liste pas ? Dans l’écran de
+configuration, cliquez sur **Ajouter un appareil par adresse IP et jeton**,
+avec l’adresse de l’appareil (votre box la liste) et son jeton. L’intégration
+demande son modèle à l’appareil, ce qui prouve aussi le jeton. L’appareil
+apparaît dans l’onglet **Découverte**.
+
+### Autres actions de l’écran de configuration
+
+- **Diagnostiquer les appareils** : pour chaque appareil, son modèle, son
+  adresse, s’il répond, combien de fonctionnalités ont été traduites et quels
+  services ont été laissés de côté ; et les appareils miIO trouvés sur le
+  réseau que l’intégration ne connaît pas.
+- **Oublier un appareil et son jeton** : retire un appareil de l’intégration
+  (vendu, remplacé). Supprimez-le aussi dans Gladys.
+
+## Les appareils dans Gladys
+
+Chaque appareil devient un appareil Gladys, nommé d’après son nom dans Mi Home
+(ou son type et la fin de son identifiant). Seul ce que sa spécification
+déclare est publié :
+
+| Fonctionnalité          | Ce que c’est                                           | Appareils                                                           |
+| ----------------------- | ------------------------------------------------------ | ------------------------------------------------------------------- |
+| Marche                  | Allumé / éteint                                        | Purificateurs, humidificateurs, ventilateurs, prises, interrupteurs |
+| Lumière                 | Allumée / éteinte                                      | Lampes                                                              |
+| Mode                    | La liste des modes de l’appareil (Auto, Nuit, Favori…) | Purificateurs, humidificateurs, ventilateurs                        |
+| Vitesse de ventilation  | Une liste de niveaux, ou un curseur                    | Purificateurs, humidificateurs, ventilateurs                        |
+| Oscillation horizontale | Oscillation oui / non                                  | Ventilateurs                                                        |
+| Oscillation verticale   | Oscillation oui / non                                  | Ventilateurs                                                        |
+| Humidité cible          | Une liste tous les 5 %                                 | Humidificateurs, déshumidificateurs                                 |
+| Niveau d'eau            | Eau restante dans le réservoir, en %                   | Humidificateurs                                                     |
+| Réservoir vide          | Oui / non                                              | Certains humidificateurs                                            |
+| Température de consigne | La consigne, affichée seulement                        | Radiateurs                                                          |
+| Défaut                  | Ce que l’appareil signale, ou _Aucun défaut_           | La plupart des appareils                                            |
+| Température             | °C                                                     | Appareils avec capteur                                              |
+| Humidité                | %                                                      | Appareils avec capteur                                              |
+| PM2,5 / PM10            | µg/m³                                                  | Purificateurs, moniteurs                                            |
+| CO2                     | ppm                                                    | Moniteurs                                                           |
+| Luminosité ambiante     | lux                                                    | Appareils avec capteur de lumière                                   |
+| Durée de vie du filtre  | % restant                                              | Purificateurs                                                       |
+| Temps restant du filtre | Jours ou heures                                        | Purificateurs                                                       |
+| Batterie                | %                                                      | Moniteurs sur batterie                                              |
+| Sécurité enfant         | Verrouille les boutons de l’appareil                   | La plupart des appareils                                            |
+| Puissance consommée     | Watts                                                  | Prises avec mesure                                                  |
+| Luminosité              | %                                                      | Lampes                                                              |
+| Température de couleur  | Kelvins, dans la plage du modèle                       | Lampes                                                              |
+| Couleur                 | La couleur d’une lampe couleur                         | Lampes couleur                                                      |
+
+- **Un radiateur est affiché, jamais piloté** : sa marche et sa consigne sont
+  en lecture seule. Un radiateur piloté comme une lampe par une scène, un
+  tableau de bord ou un assistant vocal pourrait chauffer une pièce vide ou
+  démarrer près de quelque chose ; utilisez ses boutons ou l’application
+  Mi Home.
+- Ce que la traduction laisse de côté (le bip, l’écran, le voyant, les
+  réglages propres au fabricant) est listé par **Diagnostiquer les
+  appareils** et reste accessible avec l’action de scène **Régler une
+  propriété MIoT**.
+- Quand un appareil ne répond plus, son badge le dit injoignable ; il revient
+  tout seul.
+
+## Widget de tableau de bord
+
+Ajoutez le widget **Qualité de l’air** à un tableau de bord et choisissez un
+appareil dans ses réglages. Il montre jusqu’à quatre tuiles en direct (PM2,5,
+CO2, température, humidité, niveau d’eau, durée de vie du filtre en jauge,
+dans cet ordre), l’état de l’appareil (en marche, arrêté ou ne répond pas),
+son mode et sa vitesse, un défaut s’il y en a un, et des boutons :
+
+- **Allumer** / **Éteindre**, qui bascule l’appareil quel que soit l’état
+  affiché (pas sur un radiateur) ;
+- les deux premiers modes de l’appareil (par exemple _Auto_ et _Nuit_) ; celui
+  en cours porte une coche.
 
 ## Scènes
 
-L'intégration ajoute ses propres cartes à l'éditeur de scènes (Gladys 5.1
-ou plus récent), dans la catégorie **Intégrations** :
+### Déclencheur
 
-- **Mouvement détecté** (déclencheur) — lance la scène quand un détecteur
-  de démonstration voit bouger quelque chose. Choisissez éventuellement le
-  détecteur et ce qui a bougé (personne, animal) ; laissés vides, toute
-  détection correspond. Les actions suivantes peuvent lire ce qui a bougé
-  avec `{{triggerEvent.data.target}}`.
-- **Identifier un appareil** (action) — fait se signaler l'appareil choisi.
-  Elle indique si l'appareil a pu se signaler, pour que les actions
-  suivantes puissent en dépendre.
+**Appareil Xiaomi à entretenir** : se déclenche une fois quand une raison
+commence, et de nouveau seulement après qu’elle a cessé. Filtres :
 
-## Tableau de bord
+- **Appareil Xiaomi** : un appareil, ou n’importe lequel ;
+- **Raison** : **Filtre à changer** (durée de vie du filtre à 10 % ou moins),
+  **Réservoir vide** (l’alarme du réservoir, ou un niveau d’eau à 0 %),
+  **Défaut** (l’appareil signale un défaut) ; vide pour toutes.
 
-Ajoutez le widget **État de la démo** à un tableau de bord : il affiche en
-direct la température de la station météo et la puissance de la prise du
-bureau, la connexion utilisée par la prise (en orange si dégradée) et la
-position observée. Son bouton **Identifier la lampe** fait se signaler la
-lampe de démonstration.
+Les variables donnent le nom de l’appareil (`device_name`), la raison
+(`filter`, `water` ou `fault`) et un détail (la durée de vie du filtre, le
+défaut signalé). Les raisons en cours sont gardées d’un redémarrage à l’autre.
+
+### Action
+
+**Régler une propriété MIoT** : écrit toute propriété modifiable d’un appareil
+par son numéro sur miot-spec.org (`siid.piid`, par exemple `6.1` pour le bip
+d’un Mi Air Purifier 4), avec une valeur comme la spécification l’attend
+(`true` / `false`, un nombre ou un texte). L’action refuse une propriété qui
+n’existe pas, en lecture seule, ou une valeur hors de sa plage ; et tout
+radiateur. Elle donne la valeur écrite aux actions suivantes.
+
+Pour trouver les numéros : ouvrez `https://home.miot-spec.com/spec/<modèle>`
+(par exemple `zhimi.airp.mb5`), ou lancez **Diagnostiquer les appareils**, qui
+nomme les services laissés de côté avec leur numéro.
+
+### Idées de scènes
+
+- **Rappel de filtre** : _Appareil Xiaomi à entretenir_, raison _Filtre à
+  changer_ → envoyer le message « {{device_name}} : filtre à {{detail}} ».
+- **Nuits calmes** : tous les jours à 22 h → régler le **Mode** du
+  purificateur sur _Nuit_, puis _Régler une propriété MIoT_ `6.1` = `false`
+  pour couper son bip.
+- **Mieux respirer** : quand la **PM2,5** du moniteur dépasse 35 → allumer le
+  purificateur, mode _Auto_.
+- **Remplir l’humidificateur** : _Appareil Xiaomi à entretenir_, raison
+  _Réservoir vide_ → envoyer un message, et éteindre l’humidificateur.
 
 ## Dépannage
 
-L'intégration journalise tout ce qu'elle fait : consultez les logs de
-l'intégration depuis l'interface Gladys (ou `docker logs` sur l'hôte) avec
-`LOG_LEVEL=debug` pour le détail complet.
+- **Aucun appareil importé** : vérifiez la région du compte (un compte Xiaomi
+  est lié à une région), et le message sous le bouton : aspirateurs, appareils
+  Bluetooth et Zigbee sont laissés de côté volontairement.
+- **« Xiaomi demande un captcha »** : connectez-vous une fois à l’application
+  Mi Home depuis le même réseau, patientez quelques minutes, réessayez ; ou
+  ajoutez les appareils à la main.
+- **Un appareil ne répond pas** : vérifiez qu’il est sur le même réseau que
+  Gladys (un réseau invité ou un VLAN objets isolé le bloque), et donnez-lui
+  une adresse fixe dans votre box. Un appareil qui change d’adresse est
+  retrouvé en 15 minutes par une diffusion de découverte envoyée par Gladys
+  (port UDP 54321, d’où cette autorisation à l’installation).
+- **« refuse son jeton »** : l’appareil a été réinitialisé ou associé de
+  nouveau dans Mi Home, son jeton a changé : cliquez de nouveau sur
+  **Importer les appareils du compte Xiaomi**.
+- **« spécification manquante »** : miot-spec.org n’a rien pour ce modèle, ou
+  était injoignable ; l’intégration réessaie toutes les 15 minutes. Les
+  anciens modèles miIO seuls (d’avant MIoT) ne sont pas pris en charge.
+- L’intégration journalise ce qu’elle trouve et ce qui ne répond pas
+  (davantage avec `LOG_LEVEL=debug`) : ouvrez ses journaux depuis l’interface
+  de Gladys.
+
+## Limites
+
+- **Appareils Wi-Fi seulement** : les appareils Bluetooth et Zigbee qui passent
+  par une passerelle Xiaomi n’ont pas d’adresse propre, et sont laissés de
+  côté.
+- Les aspirateurs robots sont laissés de côté (voyez les intégrations Xiaomi
+  Home, Roborock et Dreame).
+- Climatiseurs, thermostats, bouilloires, cuiseurs et autres types ne sont pas
+  encore traduits : ils n’apparaissent que s’ils ont l’un des services
+  standard ci-dessus (une prise, un capteur…).
+- Pas de remontée instantanée : chaque appareil est lu toutes les 30 secondes
+  par défaut, une requête groupée par appareil ; un changement fait dans
+  Mi Home apparaît à la lecture suivante.
+- Les serveurs Xiaomi ne sont appelés que quand vous importez les appareils
+  (et quand les identifiants du compte changent) ; miot-spec.org une fois par
+  modèle. Ni l’un ni l’autre n’est nécessaire ensuite.
+- Développée sans le matériel : les différences propres à certains modèles que
+  les spécifications ne disent pas (une puissance dans une autre unité)
+  pourront demander des ajustements ; signalez-les.

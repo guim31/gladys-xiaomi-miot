@@ -30,6 +30,36 @@ Gladys before reporting a problem.
 
 In scope: the code of this repository and the Docker image it publishes.
 
+What the integration handles:
+
+- **Secrets**:
+  - the e-mail (or phone number) and the password of the Xiaomi account, in
+    the configuration of the integration (a `secret` field, kept by Gladys);
+    the password is only sent to `account.xiaomi.com`, as the MD5 hash the
+    Mi Home app sends. The Xiaomi session (service token, `ssecurity`) lives
+    in memory for the import only and is never stored;
+  - the **device tokens**, 32 hexadecimal characters: whoever has one can
+    drive the device on the local network.
+- **Stored in `/data`**: `xiaomi-miot.json` (mode 0600), the devices known:
+  device id, model, local IP address, token, Mi Home name, and the
+  maintenance alerts in progress; `specs/`, the public MIoT specifications.
+  Nothing is written anywhere else (the root filesystem is read only).
+- **Logs**: no password, token, session cookie nor verification code, at any
+  level (`test/logs.test.js` checks it).
+- **Network**:
+  - miIO datagrams on UDP port 54321, in unicast to the devices of the local
+    network, encrypted with their token. The discovery broadcast (a miIO
+    "hello", which carries no secret) is emitted by the Gladys core on the
+    integration's behalf, on that port only (manifest `network_discovery`).
+    The integration opens no listening port;
+  - HTTPS to `account.xiaomi.com`, `sts.api.io.mi.com` and
+    `<region>.api.io.mi.com` when the devices are imported (an action, or a
+    change of the account details), and to `miot-spec.org` once per model.
+
+Anyone on the local network who knows a device token can drive that device
+the same way: this is how the miIO protocol works, not something the
+integration adds. Keep the tokens as private as passwords.
+
 Out of scope: Gladys Assistant itself (see its
 [security policy](https://github.com/GladysAssistant/Gladys/security/policy)),
-and the third-party services and devices the integration talks to.
+the Xiaomi devices, app and cloud, and the other devices of your network.

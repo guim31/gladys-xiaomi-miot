@@ -1,147 +1,511 @@
 {
   "manifest_version": 1,
   "type": "device",
-  "name": "Demo Devices Template",
+  "name": "Xiaomi MIoT",
   "description": {
-    "en": "Starter template showing sensors, a switch, a dimmable light and a smart plug.",
-    "fr": "Template de démarrage : capteurs, interrupteur, lampe variable et prise connectée."
+    "en": "Xiaomi purifiers, humidifiers, fans, plugs and lights on the local network (MIoT).",
+    "fr": "Purificateurs, humidificateurs, ventilateurs, prises et lampes Xiaomi en local (MIoT).",
+    "de": "Xiaomi-Luftreiniger, Befeuchter, Ventilatoren, Steckdosen und Lampen lokal (MIoT).",
+    "es": "Purificadores, humidificadores, ventiladores, enchufes y lámparas Xiaomi en local (MIoT)."
   },
   "version": "1.0.0",
-  "docker_image": "ghcr.io/gladysassistant/integration-template-js:1.0.0",
+  "docker_image": "ghcr.io/guim31/gladys-xiaomi-miot:1.0.0",
   "gladys_version": ">=5.1.0",
-  "cover_image": "https://raw.githubusercontent.com/GladysAssistant/integration-template-js/master/cover.png",
-  "categories": ["lighting", "security", "environment"],
-  "transports": ["local", "cloud"],
+  "cover_image": "https://raw.githubusercontent.com/guim31/gladys-xiaomi-miot/main/cover.png",
+  "categories": ["climate", "appliances"],
+  "transports": ["local"],
+  "network_discovery": [
+    {
+      "type": "udp-active-broadcast",
+      "ports": [54321]
+    }
+  ],
   "config_schema": [
     {
       "key": "intro",
       "type": "section",
-      "label": { "en": "Getting started", "fr": "Pour commencer" },
+      "label": {
+        "en": "Xiaomi account",
+        "fr": "Compte Xiaomi",
+        "de": "Xiaomi-Konto",
+        "es": "Cuenta Xiaomi"
+      },
       "description": {
-        "en": "The demo weather station reads real data from the free Open-Meteo API: pick the coordinates to observe. No account, no API key.",
-        "fr": "La station météo de démonstration lit de vraies données via l'API gratuite Open-Meteo : choisissez les coordonnées à observer. Pas de compte, pas de clé d'API."
+        "en": "The account is used once, to list your Wi-Fi devices with their address and token; then everything stays on the local network. Save, then run “Import the devices of the Xiaomi account” below. No account? Add a device by its IP address and token.",
+        "fr": "Le compte ne sert qu’une fois, pour lister vos appareils Wi-Fi avec leur adresse et leur jeton ; ensuite tout reste sur le réseau local. Enregistrez, puis lancez « Importer les appareils du compte Xiaomi » plus bas. Pas de compte ? Ajoutez un appareil par son adresse IP et son jeton.",
+        "de": "Das Konto wird nur einmal genutzt, um deine WLAN-Geräte mit Adresse und Token aufzulisten; danach bleibt alles im lokalen Netzwerk. Speichere und starte dann unten „Geräte des Xiaomi-Kontos importieren“. Kein Konto? Füge ein Gerät mit IP-Adresse und Token hinzu.",
+        "es": "La cuenta solo se usa una vez, para listar sus dispositivos Wi-Fi con su dirección y su token; después todo queda en la red local. Guarde y ejecute «Importar los dispositivos de la cuenta Xiaomi» más abajo. ¿Sin cuenta? Añada un dispositivo con su dirección IP y su token."
       },
       "links": [
         {
-          "url": "https://open-meteo.com/en/docs",
-          "label": { "en": "Open-Meteo documentation", "fr": "Documentation Open-Meteo" }
+          "url": "https://github.com/guim31/gladys-xiaomi-miot#readme",
+          "label": {
+            "en": "Documentation",
+            "fr": "Documentation",
+            "de": "Dokumentation",
+            "es": "Documentación"
+          }
         }
       ]
     },
     {
-      "key": "latitude",
-      "type": "number",
-      "label": { "en": "Latitude", "fr": "Latitude" },
-      "description": {
-        "en": "Latitude used for the demo weather sensor.",
-        "fr": "Latitude utilisée par le capteur météo de démonstration."
+      "key": "username",
+      "type": "string",
+      "label": {
+        "en": "E-mail or phone number",
+        "fr": "E-mail ou numéro de téléphone",
+        "de": "E-Mail-Adresse oder Telefonnummer",
+        "es": "Correo electrónico o teléfono"
       },
-      "placeholder": { "en": "e.g. 48.8566", "fr": "ex. 48.8566" },
-      "required": true,
-      "default": 48.8566,
-      "min": -90,
-      "max": 90
+      "description": {
+        "en": "The login of your Mi Home (Xiaomi Home) account.",
+        "fr": "L’identifiant de votre compte Mi Home (Xiaomi Home).",
+        "de": "Die Anmeldung deines Mi-Home-Kontos (Xiaomi Home).",
+        "es": "El usuario de su cuenta Mi Home (Xiaomi Home)."
+      },
+      "required": false
     },
     {
-      "key": "longitude",
-      "type": "number",
-      "label": { "en": "Longitude", "fr": "Longitude" },
-      "description": {
-        "en": "Longitude used for the demo weather sensor.",
-        "fr": "Longitude utilisée par le capteur météo de démonstration."
+      "key": "password",
+      "type": "secret",
+      "label": {
+        "en": "Password",
+        "fr": "Mot de passe",
+        "de": "Passwort",
+        "es": "Contraseña"
       },
-      "placeholder": { "en": "e.g. 2.3522", "fr": "ex. 2.3522" },
-      "required": true,
-      "default": 2.3522,
-      "min": -180,
-      "max": 180
+      "required": false
     },
     {
-      "key": "unit",
+      "key": "region",
       "type": "select",
-      "label": { "en": "Temperature unit", "fr": "Unité de température" },
+      "label": {
+        "en": "Region of the account",
+        "fr": "Région du compte",
+        "de": "Region des Kontos",
+        "es": "Región de la cuenta"
+      },
+      "description": {
+        "en": "The server region chosen in the Mi Home app (Profile → Settings → Region).",
+        "fr": "La région de serveur choisie dans l’application Mi Home (Profil → Paramètres → Région).",
+        "de": "Die Serverregion aus der Mi-Home-App (Profil → Einstellungen → Region).",
+        "es": "La región del servidor elegida en la aplicación Mi Home (Perfil → Ajustes → Región)."
+      },
       "required": false,
-      "default": "celsius",
+      "default": "de",
       "options": [
-        { "value": "celsius", "label": { "en": "Celsius", "fr": "Celsius" } },
-        { "value": "fahrenheit", "label": { "en": "Fahrenheit", "fr": "Fahrenheit" } }
+        {
+          "value": "de",
+          "label": {
+            "en": "Europe",
+            "fr": "Europe",
+            "de": "Europa",
+            "es": "Europa"
+          }
+        },
+        {
+          "value": "cn",
+          "label": {
+            "en": "Mainland China",
+            "fr": "Chine continentale",
+            "de": "Festlandchina",
+            "es": "China continental"
+          }
+        },
+        {
+          "value": "ru",
+          "label": {
+            "en": "Russia",
+            "fr": "Russie",
+            "de": "Russland",
+            "es": "Rusia"
+          }
+        },
+        {
+          "value": "sg",
+          "label": {
+            "en": "Singapore",
+            "fr": "Singapour",
+            "de": "Singapur",
+            "es": "Singapur"
+          }
+        },
+        {
+          "value": "us",
+          "label": {
+            "en": "United States",
+            "fr": "États-Unis",
+            "de": "Vereinigte Staaten",
+            "es": "Estados Unidos"
+          }
+        },
+        {
+          "value": "i2",
+          "label": {
+            "en": "India",
+            "fr": "Inde",
+            "de": "Indien",
+            "es": "India"
+          }
+        }
       ]
     },
     {
-      "key": "poll_frequency",
-      "type": "number",
-      "label": { "en": "Refresh interval (s)", "fr": "Intervalle de rafraîchissement (s)" },
+      "key": "poll_interval",
+      "type": "select",
+      "label": {
+        "en": "Refresh interval",
+        "fr": "Intervalle de rafraîchissement",
+        "de": "Aktualisierungsintervall",
+        "es": "Intervalo de actualización"
+      },
       "description": {
-        "en": "How often sensors are polled, in seconds (one minute minimum).",
-        "fr": "Fréquence d'interrogation des capteurs, en secondes (une minute minimum)."
+        "en": "How often every device is read on the local network.",
+        "fr": "Fréquence de lecture de chaque appareil sur le réseau local.",
+        "de": "Wie oft jedes Gerät im lokalen Netzwerk gelesen wird.",
+        "es": "Frecuencia de lectura de cada dispositivo en la red local."
       },
       "required": false,
-      "default": 300,
-      "min": 60,
-      "max": 3600
+      "default": "30",
+      "options": [
+        {
+          "value": "15",
+          "label": {
+            "en": "15 s",
+            "fr": "15 s",
+            "de": "15 s",
+            "es": "15 s"
+          }
+        },
+        {
+          "value": "30",
+          "label": {
+            "en": "30 s",
+            "fr": "30 s",
+            "de": "30 s",
+            "es": "30 s"
+          }
+        },
+        {
+          "value": "60",
+          "label": {
+            "en": "60 s",
+            "fr": "60 s",
+            "de": "60 s",
+            "es": "60 s"
+          }
+        },
+        {
+          "value": "120",
+          "label": {
+            "en": "120 s",
+            "fr": "120 s",
+            "de": "120 s",
+            "es": "120 s"
+          }
+        }
+      ]
+    },
+    {
+      "key": "language",
+      "type": "select",
+      "label": {
+        "en": "Language of the feature names",
+        "fr": "Langue des noms de fonctionnalités",
+        "de": "Sprache der Funktionsnamen",
+        "es": "Idioma de los nombres de las funciones"
+      },
+      "description": {
+        "en": "Names given to the devices when you add them, and texts of the integration.",
+        "fr": "Noms donnés aux appareils quand vous les ajoutez, et textes de l’intégration.",
+        "de": "Namen, die die Geräte beim Hinzufügen erhalten, und Texte der Integration.",
+        "es": "Nombres que reciben los dispositivos al añadirlos y textos de la integración."
+      },
+      "required": false,
+      "default": "fr",
+      "options": [
+        {
+          "value": "en",
+          "label": {
+            "en": "English",
+            "fr": "Anglais",
+            "de": "Englisch",
+            "es": "Inglés"
+          }
+        },
+        {
+          "value": "fr",
+          "label": {
+            "en": "French",
+            "fr": "Français",
+            "de": "Französisch",
+            "es": "Francés"
+          }
+        },
+        {
+          "value": "de",
+          "label": {
+            "en": "German",
+            "fr": "Allemand",
+            "de": "Deutsch",
+            "es": "Alemán"
+          }
+        },
+        {
+          "value": "es",
+          "label": {
+            "en": "Spanish",
+            "fr": "Espagnol",
+            "de": "Spanisch",
+            "es": "Español"
+          }
+        }
+      ]
     }
   ],
   "actions": [
     {
-      "key": "test_weather",
-      "label": { "en": "Test the weather provider", "fr": "Tester le fournisseur météo" },
-      "timeout_seconds": 30
-    },
-    {
-      "key": "identify",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
+      "key": "import_from_cloud",
+      "label": {
+        "en": "Import the devices of the Xiaomi account",
+        "fr": "Importer les appareils du compte Xiaomi",
+        "de": "Geräte des Xiaomi-Kontos importieren",
+        "es": "Importar los dispositivos de la cuenta Xiaomi"
+      },
+      "timeout_seconds": 120,
       "fields": [
         {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
+          "key": "verification_code",
+          "type": "string",
+          "label": {
+            "en": "Verification code",
+            "fr": "Code de vérification",
+            "de": "Bestätigungscode",
+            "es": "Código de verificación"
+          },
+          "description": {
+            "en": "Only when Xiaomi asks for a two-step verification: the code received by SMS or e-mail.",
+            "fr": "Seulement si Xiaomi demande une vérification en deux étapes : le code reçu par SMS ou e-mail.",
+            "de": "Nur wenn Xiaomi eine Bestätigung in zwei Schritten verlangt: der per SMS oder E-Mail erhaltene Code.",
+            "es": "Solo si Xiaomi pide una verificación en dos pasos: el código recibido por SMS o correo electrónico."
+          },
+          "placeholder": {
+            "en": "e.g. 123456",
+            "fr": "ex. 123456",
+            "de": "z. B. 123456",
+            "es": "p. ej. 123456"
+          },
+          "required": false
+        }
+      ]
+    },
+    {
+      "key": "add_device",
+      "label": {
+        "en": "Add a device by IP address and token",
+        "fr": "Ajouter un appareil par adresse IP et jeton",
+        "de": "Gerät mit IP-Adresse und Token hinzufügen",
+        "es": "Añadir un dispositivo con dirección IP y token"
+      },
+      "timeout_seconds": 60,
+      "fields": [
+        {
+          "key": "ip",
+          "type": "string",
+          "label": {
+            "en": "IP address",
+            "fr": "Adresse IP",
+            "de": "IP-Adresse",
+            "es": "Dirección IP"
+          },
+          "placeholder": {
+            "en": "e.g. 192.168.1.20",
+            "fr": "ex. 192.168.1.20",
+            "de": "z. B. 192.168.1.20",
+            "es": "p. ej. 192.168.1.20"
+          },
+          "required": true
+        },
+        {
+          "key": "token",
+          "type": "string",
+          "label": {
+            "en": "Token",
+            "fr": "Jeton",
+            "de": "Token",
+            "es": "Token"
+          },
+          "description": {
+            "en": "32 hexadecimal characters. It is stored in the integration only, never shown again.",
+            "fr": "32 caractères hexadécimaux. Il n’est gardé que par l’intégration, jamais réaffiché.",
+            "de": "32 hexadezimale Zeichen. Es wird nur in der Integration gespeichert und nie wieder angezeigt.",
+            "es": "32 caracteres hexadecimales. Solo lo guarda la integración, nunca se vuelve a mostrar."
+          },
+          "placeholder": {
+            "en": "32 characters, 0-9 and a-f",
+            "fr": "32 caractères, 0-9 et a-f",
+            "de": "32 Zeichen, 0-9 und a-f",
+            "es": "32 caracteres, 0-9 y a-f"
+          },
           "required": true
         }
       ]
-    }
-  ],
-  "scene_triggers": [
+    },
     {
-      "key": "motion_detected",
-      "label": { "en": "Motion detected", "fr": "Mouvement détecté" },
-      "description": {
-        "en": "A demo motion sensor saw a person or an animal move.",
-        "fr": "Un détecteur de démonstration a vu bouger une personne ou un animal."
+      "key": "forget_device",
+      "label": {
+        "en": "Forget a device and its token",
+        "fr": "Oublier un appareil et son jeton",
+        "de": "Gerät und sein Token vergessen",
+        "es": "Olvidar un dispositivo y su token"
       },
       "fields": [
         {
           "key": "device",
           "type": "select",
           "source": "devices",
-          "label": { "en": "Sensor", "fr": "Détecteur" }
+          "label": {
+            "en": "Xiaomi device",
+            "fr": "Appareil Xiaomi",
+            "de": "Xiaomi-Gerät",
+            "es": "Dispositivo Xiaomi"
+          },
+          "required": true
+        }
+      ]
+    },
+    {
+      "key": "diagnose",
+      "label": {
+        "en": "Diagnose the devices",
+        "fr": "Diagnostiquer les appareils",
+        "de": "Geräte diagnostizieren",
+        "es": "Diagnosticar los dispositivos"
+      },
+      "timeout_seconds": 60
+    }
+  ],
+  "scene_triggers": [
+    {
+      "key": "maintenance_needed",
+      "label": {
+        "en": "Xiaomi device needs attention",
+        "fr": "Appareil Xiaomi à entretenir",
+        "de": "Xiaomi-Gerät braucht Aufmerksamkeit",
+        "es": "Dispositivo Xiaomi requiere atención"
+      },
+      "description": {
+        "en": "Once, when a filter reaches 10 % of its life, a water tank runs empty or a device reports a fault.",
+        "fr": "Une fois, quand un filtre atteint 10 % de sa durée de vie, qu’un réservoir est vide ou qu’un appareil signale un défaut.",
+        "de": "Einmal, wenn ein Filter 10 % seiner Lebensdauer erreicht, ein Wassertank leer ist oder ein Gerät eine Störung meldet.",
+        "es": "Una vez, cuando un filtro llega al 10 % de su vida útil, un depósito se vacía o un dispositivo indica una avería."
+      },
+      "fields": [
+        {
+          "key": "device",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Xiaomi device",
+            "fr": "Appareil Xiaomi",
+            "de": "Xiaomi-Gerät",
+            "es": "Dispositivo Xiaomi"
+          }
         },
         {
-          "key": "target",
+          "key": "reason",
           "type": "multi_select",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" },
+          "label": {
+            "en": "Reason",
+            "fr": "Raison",
+            "de": "Grund",
+            "es": "Motivo"
+          },
+          "description": {
+            "en": "Leave empty for all.",
+            "fr": "Laisser vide pour toutes.",
+            "de": "Leer lassen für alle.",
+            "es": "Déjelo vacío para todos."
+          },
           "options": [
-            { "value": "person", "label": { "en": "Person", "fr": "Personne" } },
-            { "value": "animal", "label": { "en": "Animal", "fr": "Animal" } }
+            {
+              "value": "filter",
+              "label": {
+                "en": "Filter to replace",
+                "fr": "Filtre à changer",
+                "de": "Filter wechseln",
+                "es": "Filtro que cambiar"
+              }
+            },
+            {
+              "value": "water",
+              "label": {
+                "en": "Water tank empty",
+                "fr": "Réservoir vide",
+                "de": "Wassertank leer",
+                "es": "Depósito vacío"
+              }
+            },
+            {
+              "value": "fault",
+              "label": {
+                "en": "Fault",
+                "fr": "Défaut",
+                "de": "Störung",
+                "es": "Avería"
+              }
+            }
           ]
         }
       ],
       "variables": [
         {
-          "key": "target",
+          "key": "device_name",
           "type": "string",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" }
+          "label": {
+            "en": "Device name",
+            "fr": "Nom de l’appareil",
+            "de": "Gerätename",
+            "es": "Nombre del dispositivo"
+          }
+        },
+        {
+          "key": "reason",
+          "type": "string",
+          "label": {
+            "en": "Reason",
+            "fr": "Raison",
+            "de": "Grund",
+            "es": "Motivo"
+          }
+        },
+        {
+          "key": "detail",
+          "type": "string",
+          "label": {
+            "en": "Detail",
+            "fr": "Détail",
+            "de": "Detail",
+            "es": "Detalle"
+          }
         }
       ]
     }
   ],
   "scene_actions": [
     {
-      "key": "identify_device",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
+      "key": "set_property",
+      "label": {
+        "en": "Set a MIoT property",
+        "fr": "Régler une propriété MIoT",
+        "de": "MIoT-Eigenschaft setzen",
+        "es": "Ajustar una propiedad MIoT"
+      },
       "description": {
-        "en": "Make a device signal itself (the demo light blinks).",
-        "fr": "Fait se signaler un appareil (la lampe de démonstration clignote)."
+        "en": "Write any writable property of the device (buzzer, display, LED...) by its number on miot-spec.org.",
+        "fr": "Écrit toute propriété modifiable de l’appareil (bip, écran, voyant...) par son numéro sur miot-spec.org.",
+        "de": "Schreibt jede änderbare Eigenschaft des Geräts (Signalton, Display, LED...) über ihre Nummer auf miot-spec.org.",
+        "es": "Escribe cualquier propiedad modificable del dispositivo (pitido, pantalla, LED...) por su número en miot-spec.org."
       },
       "timeout_seconds": 15,
       "fields": [
@@ -149,29 +513,100 @@
           "key": "device",
           "type": "select",
           "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
+          "label": {
+            "en": "Xiaomi device",
+            "fr": "Appareil Xiaomi",
+            "de": "Xiaomi-Gerät",
+            "es": "Dispositivo Xiaomi"
+          },
+          "required": true
+        },
+        {
+          "key": "property",
+          "type": "string",
+          "label": {
+            "en": "Property (siid.piid)",
+            "fr": "Propriété (siid.piid)",
+            "de": "Eigenschaft (siid.piid)",
+            "es": "Propiedad (siid.piid)"
+          },
+          "placeholder": {
+            "en": "e.g. 6.1",
+            "fr": "ex. 6.1",
+            "de": "z. B. 6.1",
+            "es": "p. ej. 6.1"
+          },
+          "required": true
+        },
+        {
+          "key": "value",
+          "type": "string",
+          "label": {
+            "en": "Value",
+            "fr": "Valeur",
+            "de": "Wert",
+            "es": "Valor"
+          },
+          "description": {
+            "en": "true/false, a number or a text, as the specification expects.",
+            "fr": "true/false, un nombre ou un texte, selon la spécification.",
+            "de": "true/false, eine Zahl oder ein Text, wie die Spezifikation es verlangt.",
+            "es": "true/false, un número o un texto, según la especificación."
+          },
+          "placeholder": {
+            "en": "e.g. false",
+            "fr": "ex. false",
+            "de": "z. B. false",
+            "es": "p. ej. false"
+          },
           "required": true
         }
       ],
       "outputs": [
         {
-          "key": "signalled",
-          "type": "boolean",
-          "label": { "en": "Device signalled", "fr": "Appareil signalé" }
+          "key": "value",
+          "type": "string",
+          "label": {
+            "en": "Value written",
+            "fr": "Valeur écrite",
+            "de": "Geschriebener Wert",
+            "es": "Valor escrito"
+          }
         }
       ]
     }
   ],
   "widgets": [
     {
-      "key": "demo_status",
-      "label": { "en": "Demo status", "fr": "État de la démo" },
-      "description": {
-        "en": "Live temperature and plug power, plug connection and observed location.",
-        "fr": "Température et puissance en direct, connexion de la prise, position observée."
+      "key": "air_quality",
+      "label": {
+        "en": "Air quality",
+        "fr": "Qualité de l’air",
+        "de": "Luftqualität",
+        "es": "Calidad del aire"
       },
-      "icon": "activity",
-      "action_timeout_seconds": 15
+      "description": {
+        "en": "A purifier, humidifier or air monitor: air readings, filter, state and quick buttons.",
+        "fr": "Un purificateur, humidificateur ou moniteur : mesures de l’air, filtre, état et boutons.",
+        "de": "Luftreiniger, Befeuchter oder Monitor: Luftwerte, Filter, Status und Schnelltasten.",
+        "es": "Un purificador, humidificador o monitor: aire, filtro, estado y botones rápidos."
+      },
+      "icon": "wind",
+      "action_timeout_seconds": 15,
+      "settings": [
+        {
+          "key": "device",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Xiaomi device",
+            "fr": "Appareil Xiaomi",
+            "de": "Xiaomi-Gerät",
+            "es": "Dispositivo Xiaomi"
+          },
+          "required": true
+        }
+      ]
     }
   ]
 }
