@@ -8,8 +8,8 @@
     "de": "Xiaomi-Luftreiniger, Befeuchter, Ventilatoren, Steckdosen und Lampen lokal (MIoT).",
     "es": "Purificadores, humidificadores, ventiladores, enchufes y lámparas Xiaomi en local (MIoT)."
   },
-  "version": "1.0.1",
-  "docker_image": "ghcr.io/guim31/gladys-xiaomi-miot:1.0.1",
+  "version": "1.0.2",
+  "docker_image": "ghcr.io/guim31/gladys-xiaomi-miot:1.0.2",
   "gladys_version": ">=5.1.0",
   "cover_image": "https://raw.githubusercontent.com/guim31/gladys-xiaomi-miot/main/cover.png",
   "categories": ["climate", "appliances"],

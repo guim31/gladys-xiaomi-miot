@@ -1,6 +1,6 @@
 {
   "name": "gladys-xiaomi-miot",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "description": "Gladys Assistant external integration for Xiaomi Mi Home (MIoT) Wi-Fi devices on the local network: purifiers, humidifiers, fans, plugs, lights, sensors.",
   "type": "module",
