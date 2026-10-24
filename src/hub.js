@@ -5,9 +5,10 @@
 // maintenance trigger.
 //
 // Polling only: a miIO device pushes nothing on the LAN. The container reads
-// every added device itself (one grouped get_properties), every 30 s by
-// default; the core's onPoll is a fallback, skipped when the timer has just
-// read the device (GladysAssistant/Gladys#3198: the core may never poll).
+// every added device itself (one grouped get_properties, or get_prop for the
+// models that only speak the older miIO protocol, src/miot/legacy.js), every
+// 30 s by default; the core's onPoll is a fallback, skipped when the timer has
+// just read the device (GladysAssistant/Gladys#3198: the core may never poll).
 // -----------------------------------------------------------------------------
 
 import { GladysApiError, createLogger } from '@gladysassistant/integration-sdk';
@@ -15,6 +16,7 @@ import { CloudError, XiaomiCloud } from './cloud/client.js';
 import { isVacuum, normalizeIp, sortCloudDevices } from './cloud/devices.js';
 import { buildDevice, deviceIds, deviceName } from './devices.js';
 import { HELLO, MIIO_PORT, normalizeToken, parseHelloReply } from './miio/protocol.js';
+import { legacyMapping, readLegacy, writeLegacy } from './miot/legacy.js';
 import { DEFAULT_CHUNK, propertyKey, readProperties, writeProperty } from './miot/properties.js';
 import { quirksOf } from './miot/quirks.js';
 import { SpecRepository } from './miot/spec.js';
@@ -245,6 +247,8 @@ export class MiotHub {
       reachable: null,
       failures: 0,
       tokenRefused: false,
+      // Answers miIO.info but ignores the MIoT requests (null: not asked).
+      miioOnly: null,
       lastPolledAt: 0,
       commandSeq: 0,
       alerts: new Set(),
@@ -326,6 +330,11 @@ export class MiotHub {
       };
     }
     return record.translation;
+  }
+
+  /** The miIO mapping of a model that does not speak MIoT, or null. */
+  legacyOf(record) {
+    return record.spec ? legacyMapping(record.model, record.spec) : null;
   }
 
   kindOf(record) {
@@ -643,16 +652,19 @@ export class MiotHub {
       }
     }
     const chunk = record.chunk ?? quirksOf(record.model).chunk ?? DEFAULT_CHUNK;
+    const legacy = this.legacyOf(record);
     let result;
     try {
-      result = await readProperties(this.transport, this.target(record), record.did, properties, {
-        chunk,
-      });
+      result = legacy
+        ? await readLegacy(this.transport, this.target(record), legacy, properties)
+        : await readProperties(this.transport, this.target(record), record.did, properties, {
+            chunk,
+          });
     } catch (err) {
       await this.failed(record, err);
       return false;
     }
-    if (result.chunk !== chunk) {
+    if (!legacy && result.chunk !== chunk) {
       // Kept for the next polls, and across restarts.
       logger.debug(`${this.label(record)} reads ${result.chunk} properties at a time`);
       record.chunk = result.chunk;
@@ -673,6 +685,7 @@ export class MiotHub {
     record.failures = 0;
     const wasRefused = record.tokenRefused;
     record.tokenRefused = false;
+    record.miioOnly = null;
     this.problems.recover(`read:${record.did}`, `${this.label(record)} reads again`);
     if (record.reachable !== true || wasRefused) {
       const back = record.reachable === false;
@@ -691,7 +704,19 @@ export class MiotHub {
     if (this.stopped || err?.kind === 'closed') {
       return;
     }
-    if (err?.kind === 'no-answer' || err?.kind === 'token') {
+    if (err?.kind === 'no-answer' && record.miioOnly === null && !this.legacyOf(record)) {
+      // Silent to get_properties: a wrong token, or a model that only speaks
+      // the older miIO protocol. miIO.info tells them apart, once per streak.
+      record.miioOnly = await this.answersMiioInfo(record);
+    }
+    if (record.miioOnly && err?.kind === 'no-answer') {
+      record.tokenRefused = false;
+      this.problems.fail(
+        `read:${record.did}`,
+        `${this.label(record)} answers at ${record.host} but ignores the MIoT requests: ` +
+          `${record.model} only speaks the older miIO protocol, not supported yet`,
+      );
+    } else if (err?.kind === 'no-answer' || err?.kind === 'token') {
       // The device says hello, never answers: its token changed (reset,
       // paired again). Said once; the import action brings the new one.
       record.tokenRefused = true;
@@ -718,6 +743,16 @@ export class MiotHub {
       // Maybe a new address (DHCP): look for it now.
       this.lastLostScan = this.now();
       this.track(this.discover());
+    }
+  }
+
+  /** Whether the device answers miIO.info with its token (which is then right). */
+  async answersMiioInfo(record) {
+    try {
+      const info = await this.transport.request(this.target(record), 'miIO.info');
+      return typeof info?.model === 'string';
+    } catch {
+      return false;
     }
   }
 
@@ -808,10 +843,28 @@ export class MiotHub {
   /** Write one property and show the new value at once. */
   async write(record, { siid, piid }, raw) {
     record.commandSeq += 1;
+    const options = { timeoutMs: this.transport.timings.commandTimeoutMs };
+    const legacy = this.legacyOf(record);
     try {
-      await writeProperty(this.transport, this.target(record), record.did, { siid, piid }, raw, {
-        timeoutMs: this.transport.timings.commandTimeoutMs,
-      });
+      if (legacy) {
+        await writeLegacy(
+          this.transport,
+          this.target(record),
+          legacy,
+          { siid, piid },
+          raw,
+          options,
+        );
+      } else {
+        await writeProperty(
+          this.transport,
+          this.target(record),
+          record.did,
+          { siid, piid },
+          raw,
+          options,
+        );
+      }
     } catch (err) {
       if (err.unreachable) {
         await this.failed(record, err);
@@ -930,6 +983,7 @@ export class MiotHub {
           source: 'cloud',
         });
         known.tokenRefused = false;
+        known.miioOnly = null;
         imported.push(known);
       } else {
         const record = this.createRecord({ ...device, source: 'cloud' });
@@ -1017,7 +1071,7 @@ export class MiotHub {
     const did = String(hello.deviceId);
     const known = this.records.get(did);
     const record = known ?? this.createRecord({ did, model, host, token: hex });
-    Object.assign(record, { model, host, token: hex, tokenRefused: false });
+    Object.assign(record, { model, host, token: hex, tokenRefused: false, miioOnly: null });
     this.records.set(did, record);
     logger.info(`${model} (${did}) added by hand at ${host}`);
     await this.save();
@@ -1055,13 +1109,15 @@ export class MiotHub {
         lines.push(text.diagnosisEmpty);
       }
       for (const record of this.records.values()) {
-        const state = record.tokenRefused
-          ? text.tokenRefused
-          : record.reachable === false
-            ? text.noAnswer
-            : record.reachable === true
-              ? text.answers
-              : null;
+        const state = record.miioOnly
+          ? text.miioOnly
+          : record.tokenRefused
+            ? text.tokenRefused
+            : record.reachable === false
+              ? text.noAnswer
+              : record.reachable === true
+                ? text.answers
+                : null;
         const parts = [
           `${this.createdDevice(record)?.name ?? this.nameIn(record, language)}: ${record.model}, ${record.host}`,
         ];
@@ -1073,6 +1129,9 @@ export class MiotHub {
         } else {
           const translation = translateSpec(record.spec, { model: record.model, language });
           parts.push(text.features(translation.features.length));
+          if (this.legacyOf(record)) {
+            parts.push(text.legacy);
+          }
           if (translation.ignored.length > 0) {
             parts.push(
               text.ignored(translation.ignored.map(({ siid, service }) => `${siid} ${service}`)),

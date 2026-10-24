@@ -203,6 +203,12 @@ que nombra los servicios descartados con su número.
 - **«rechaza su token»**: el dispositivo se ha restablecido o emparejado de
   nuevo en Mi Home, su token ha cambiado: haga clic de nuevo en **Importar los
   dispositivos de la cuenta Xiaomi**.
+- **«solo el antiguo protocolo miIO»**: el dispositivo responde y su token es
+  correcto, pero ignora las peticiones MIoT (un modelo anterior a MIoT,
+  descrito después en miot-spec.org). Las lámparas Yeelight de este tipo
+  (bombillas, tiras, plafones y lámparas de mesita) se controlan con el
+  antiguo protocolo; para otro modelo, indíquelo en las issues con el modelo
+  mostrado.
 - **«falta la especificación»**: miot-spec.org no tiene nada para este modelo,
   o no era accesible; la integración lo vuelve a intentar cada 15 minutos. Los
   modelos antiguos solo miIO (anteriores a MIoT) no son compatibles.

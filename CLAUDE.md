@@ -45,6 +45,7 @@ src/miot/spec.js                  miot-spec.org client, cache under /data/specs
 src/miot/translate.js             standard MIoT services -> Gladys features (encode/decode)
 src/miot/names.js                 feature names, device kinds, value labels (en, fr, de, es)
 src/miot/quirks.js                per-model differences (chunk size, water level scale)
+src/miot/legacy.js                models deaf to MIoT on the LAN (Yeelight): get_prop and setters
 src/cloud/client.js               Xiaomi account login (two-step verification), device list
 src/cloud/crypto.js               RC4-drop1024 + SHA signatures of the Xiaomi API
 src/cloud/devices.js              which account devices are kept (Wi-Fi, address, token, no vacuum)
@@ -266,6 +267,13 @@ long, et sur un « Sie »/« Ihr… » de politesse en allemand. Le store exige 
   met son jeton dans la somme de la réponse ; associé, `ff…` ou `00…`.
 - **Mauvais jeton = silence** : l'appareil répond au hello mais ignore la requête. D'où
   l'erreur `no-answer` (jeton refusé), distincte de `offline` (pas de hello).
+- **Silence ≠ mauvais jeton** (issue #6, 24/10/2026) : les anciennes Yeelight
+  (`yeelink.light.color5`…) ont une spec sur miot-spec.org mais **ignorent `get_properties` en
+  local** ; elles ne parlent que `get_prop` (valeurs en texte : `"on"`, `"80"`) et leurs
+  setters (`set_power`, `set_bright`, `set_ct_abx`, `set_rgb`). Liste tirée de
+  `core/miio2miot_specs.py` de hass-xiaomi-miot (`src/miot/legacy.js`). Pour un autre modèle
+  muet, `miIO.info` départage : il répond → « ancien protocole miIO seul », pas « jeton
+  refusé ». Ne pas conclure au jeton quand l'utilisateur a déjà réimporté.
 - Les réponses finissent par des octets NUL ; certains firmwares répondent vide quand ils sont
   occupés. Une requête doit rester sous ~1 Ko : `get_properties` par paquets de 15 au plus ;
   certains modèles n'en acceptent que 1 à 7 (`src/miot/quirks.js`, d'après hass-xiaomi-miot).

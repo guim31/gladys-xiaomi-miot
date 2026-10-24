@@ -195,6 +195,11 @@ services left out with their number.
   which is why the install screen asks for this permission).
 - **"refuses its token"**: the device was reset or paired again in Mi Home,
   its token changed: click **Import the devices of the Xiaomi account** again.
+- **"older miIO protocol only"**: the device answers and its token is right,
+  but it ignores the MIoT requests (a model from before MIoT, described
+  afterwards on miot-spec.org). The Yeelight lights of that kind (bulbs,
+  strips, ceiling and bedside lamps) are driven over the older protocol; for
+  another model, report it in the issues with the model shown.
 - **"specification missing"**: miot-spec.org has nothing for this model, or
   could not be reached; the integration tries again every 15 minutes. Old
   miIO-only models (before MIoT) are not supported.

@@ -10,6 +10,18 @@ the notes of the version's GitHub Release.
 
 ## [Unreleased]
 
+### Fixed
+
+- The older Yeelight lights (bulbs such as `yeelink.light.color5`, strips,
+  ceiling and bedside lamps) went "unreachable" at once: they ignore the MIoT
+  requests on the LAN and only speak the older miIO protocol. They are now
+  read with `get_prop` and driven with their own methods: on/off,
+  brightness, colour temperature, colour (#6).
+- A device that ignores the MIoT requests but answers with its token is no
+  longer said to refuse its token: the logs and the diagnosis say "older miIO
+  protocol only, not supported yet" instead of asking for an import that
+  changes nothing.
+
 ## [1.0.1] - 2026-10-13
 
 ### Added

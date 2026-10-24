@@ -117,6 +117,27 @@ test('logs: a token that changed (device paired again) is said once', async (t) 
   assert.ok(lines.every((line) => !line.includes(plug.token)));
 });
 
+test('logs: a device deaf to MIoT but answering miIO.info is not said to refuse its token', async (t) => {
+  const plug = new FakeMiio(PLUG, '192.0.2.11');
+  const world = await createdWorld(t, { devices: [plug] });
+  plug.legacy = true;
+  const lines = await capture(t, async () => {
+    for (let poll = 0; poll < 3; poll += 1) {
+      await world.hub.pollAll();
+    }
+    await world.hub.idle();
+  });
+  const said = lines.filter((line) => /only speaks the older miIO protocol/.test(line));
+  assert.equal(said.length, 1, lines.join('\n'));
+  assert.ok(
+    lines.every((line) => !/refuses its token/.test(line)),
+    lines.join('\n'),
+  );
+  const ack = await world.fake.action('diagnose', {});
+  assert.match(ack.data.message.en, /older miIO protocol only, not supported yet/);
+  assert.match(ack.data.message.fr, /ancien protocole miIO seul/);
+});
+
 test('logs: a user command is one info line; a core without the scan is said once', async (t) => {
   const plug = new FakeMiio(PLUG, '192.0.2.11');
   const world = await createdWorld(t, { devices: [plug] });

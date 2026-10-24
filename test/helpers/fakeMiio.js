@@ -4,7 +4,9 @@
 // packet format (src/miio/protocol.js): it answers the hello, decrypts the
 // requests with its token, ignores what it cannot decrypt (a wrong token), and
 // answers miIO.info, get_properties and set_properties from its
-// specification (test/fixtures/specs).
+// specification (test/fixtures/specs). A `legacy` device (the Yeelight lights
+// by default) ignores get_properties and set_properties, as the real ones do,
+// and answers get_prop and the Yeelight setters instead, in strings.
 // -----------------------------------------------------------------------------
 
 import { EventEmitter } from 'node:events';
@@ -52,6 +54,21 @@ function defaultValue(prop) {
 
 let nextDid = 100_000_001;
 
+// Yeelight property names, by property type of the `light` service.
+const YEELIGHT_NAMES = {
+  on: 'power',
+  brightness: 'bright',
+  'color-temperature': 'ct',
+  color: 'rgb',
+  mode: 'color_mode',
+};
+const YEELIGHT_SETTERS = {
+  set_power: 'power',
+  set_bright: 'bright',
+  set_ct_abx: 'ct',
+  set_rgb: 'rgb',
+};
+
 export class FakeMiio {
   /**
    * @param {string} model a fixture model
@@ -61,8 +78,13 @@ export class FakeMiio {
    * @param {number} [options.did]
    * @param {Record<string, unknown>} [options.values] "siid.piid" → value
    * @param {number} [options.maxChunk] get_properties larger than this go unanswered
+   * @param {boolean} [options.legacy] speaks the older miIO protocol only
    */
-  constructor(model, host, { token, did, values = {}, maxChunk = Infinity } = {}) {
+  constructor(
+    model,
+    host,
+    { token, did, values = {}, maxChunk = Infinity, legacy = /^yeelink\.light\./.test(model) } = {},
+  ) {
     const fixture = FIXTURES[model];
     if (!fixture) {
       throw new Error(`No fixture for ${model}`);
@@ -73,6 +95,7 @@ export class FakeMiio {
     this.did = did ?? nextDid++;
     this.token = token ?? this.did.toString(16).padStart(32, 'a');
     this.maxChunk = maxChunk;
+    this.legacy = legacy;
     this.online = true;
     this.bootedAt = Date.now();
     this.calls = [];
@@ -85,6 +108,40 @@ export class FakeMiio {
       }
     }
     Object.assign(this.values, values);
+    /** Yeelight name → "siid.piid" */
+    this.names = {};
+    for (const service of this.spec.services) {
+      if (service.type.split(':')[3] !== 'light') {
+        continue;
+      }
+      for (const prop of service.properties ?? []) {
+        const name = YEELIGHT_NAMES[prop.type.split(':')[3]];
+        if (name) {
+          this.names[name] = `${service.iid}.${prop.iid}`;
+        }
+      }
+    }
+  }
+
+  /** The older miIO methods: get_prop and the Yeelight setters. */
+  answerLegacy({ method, params }) {
+    if (method === 'get_prop') {
+      return {
+        result: params.map((name) => {
+          const value = this.values[this.names[name]];
+          if (value === undefined) {
+            return '';
+          }
+          return name === 'power' ? (value ? 'on' : 'off') : String(value);
+        }),
+      };
+    }
+    const name = YEELIGHT_SETTERS[method];
+    if (name && this.names[name]) {
+      this.values[this.names[name]] = name === 'power' ? params[0] === 'on' : params[0];
+      return { result: ['ok'] };
+    }
+    return undefined;
   }
 
   property(siid, piid) {
@@ -135,6 +192,10 @@ export class FakeMiio {
   }
 
   answer({ method, params }) {
+    if (this.legacy && method !== 'miIO.info') {
+      // get_properties and set_properties go unanswered, like a wrong token.
+      return this.answerLegacy({ method, params });
+    }
     switch (method) {
       case 'miIO.info':
         return { result: { model: this.model, fw_ver: '1.0.0', hw_ver: 'esp32' } };
