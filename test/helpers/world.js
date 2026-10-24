@@ -30,6 +30,8 @@ export const PURIFIER = 'zhimi.airp.mb5';
 export const HUMIDIFIER = 'deerma.humidifier.jsq4';
 export const PLUG = 'chuangmi.plug.212a01';
 export const HEATER = 'zhimi.heater.mc2';
+// Speaks the older miIO protocol only (issue #6).
+export const BULB = 'yeelink.light.color5';
 
 /** One fake device per fixture model, at 192.0.2.10, .11... */
 export function allDevices() {

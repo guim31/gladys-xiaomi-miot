@@ -205,6 +205,12 @@ ausgelassenen Dienste mit ihrer Nummer nennt.
 - **„lehnt sein Token ab“**: Das Gerät wurde zurückgesetzt oder in Mi Home neu
   gekoppelt, sein Token hat sich geändert: Klicke erneut auf **Geräte des
   Xiaomi-Kontos importieren**.
+- **„nur das ältere miIO-Protokoll“**: Das Gerät antwortet und sein Token
+  stimmt, aber es ignoriert die MIoT-Anfragen (ein Modell aus der Zeit vor
+  MIoT, erst später auf miot-spec.org beschrieben). Die Yeelight-Lampen dieser
+  Art (Glühbirnen, Lichtstreifen, Decken- und Nachttischlampen) werden über
+  das ältere Protokoll gesteuert; melde ein anderes Modell in den Issues, mit
+  dem angezeigten Modell.
 - **„Spezifikation fehlt“**: miot-spec.org hat nichts für dieses Modell oder war
   nicht erreichbar; die Integration versucht es alle 15 Minuten erneut. Alte
   reine miIO-Modelle (vor MIoT) werden nicht unterstützt.

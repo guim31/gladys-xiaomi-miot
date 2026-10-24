@@ -204,6 +204,11 @@ nomme les services laissés de côté avec leur numéro.
 - **« refuse son jeton »** : l’appareil a été réinitialisé ou associé de
   nouveau dans Mi Home, son jeton a changé : cliquez de nouveau sur
   **Importer les appareils du compte Xiaomi**.
+- **« ancien protocole miIO seul »** : l’appareil répond et son jeton est bon,
+  mais il ignore les requêtes MIoT (un modèle d’avant MIoT, décrit après coup
+  sur miot-spec.org). Les lampes Yeelight de ce genre (ampoules, rubans,
+  plafonniers, lampes de chevet) sont pilotées par l’ancien protocole ; pour
+  un autre modèle, signalez-le dans les issues avec le modèle affiché.
 - **« spécification manquante »** : miot-spec.org n’a rien pour ce modèle, ou
   était injoignable ; l’intégration réessaie toutes les 15 minutes. Les
   anciens modèles miIO seuls (d’avant MIoT) ne sont pas pris en charge.

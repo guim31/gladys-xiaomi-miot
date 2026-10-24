@@ -10,6 +10,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { FILTER_ALERT_PERCENT, TRIGGER } from '../src/hub.js';
 import {
+  BULB,
   FakeMiio,
   HEATER,
   HUMIDIFIER,
@@ -193,6 +194,58 @@ test('a humidifier with an empty tank fires the water reason', async (t) => {
   await world.hub.pollAll();
   assert.equal(world.fake.sceneEvents.length, 1);
   assert.equal(world.fake.sceneEvents[0].data.reason, 'water');
+});
+
+test('a Yeelight deaf to MIoT is read with get_prop and driven with its own methods', async (t) => {
+  const bulb = new FakeMiio(BULB, '192.0.2.13', {
+    values: { 2.1: true, 2.2: 80, 2.3: 4000, 2.4: 0xff0000 },
+  });
+  const world = await created(t, { devices: [bulb] });
+  const id = (key) => featureId(world.gladys, bulb.did, key);
+  assert.equal(world.fake.lastState(id('2-1')), 1);
+  assert.equal(world.fake.lastState(id('2-2')), 80);
+  assert.equal(world.fake.lastState(id('2-3')), 4000);
+  assert.equal(world.fake.lastState(id('2-4')), 0xff0000);
+  assert.ok(bulb.calls.every((call) => call.method !== 'get_properties'));
+  const record = world.hub.records.get(String(bulb.did));
+  assert.equal(record.reachable, true);
+  assert.equal(record.tokenRefused, false);
+
+  const device = { external_id: deviceId(world.gladys, bulb.did) };
+  for (const [key, value] of [
+    ['2-1', 0],
+    ['2-2', 50],
+    ['2-3', 2700],
+    ['2-4', 0x00ff00],
+  ]) {
+    const ack = await world.fake.setValue(device, { external_id: id(key) }, value);
+    assert.deepEqual(ack, { success: true }, key);
+  }
+  assert.deepEqual(
+    bulb.calls.slice(-4).map(({ method, params }) => [method, params]),
+    [
+      ['set_power', ['off']],
+      ['set_bright', [50]],
+      ['set_ct_abx', [2700, 'smooth', 500]],
+      ['set_rgb', [0x00ff00]],
+    ],
+  );
+  assert.equal(world.fake.lastState(id('2-1')), 0);
+  bulb.values['2.2'] = 30;
+  await world.hub.pollAll();
+  assert.equal(world.fake.lastState(id('2-2')), 30);
+
+  const mode = await world.fake.sceneAction('set_property', {
+    device: device.external_id,
+    property: '2.5',
+    value: '1',
+  });
+  assert.equal(mode.success, false, 'the mode has no miIO method');
+  const ack = await world.fake.action('diagnose', {});
+  assert.match(
+    ack.data.message.en,
+    /yeelink\.light\.color5, 192\.0\.2\.13 · answers · 4 feature\(s\) · older miIO protocol/,
+  );
 });
 
 test('a device that stops answering is unreachable after two polls, and comes back', async (t) => {

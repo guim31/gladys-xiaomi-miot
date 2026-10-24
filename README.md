@@ -19,7 +19,9 @@ owners.
 
 - **Local control** over miIO (UDP port 54321, AES-128-CBC encrypted with the
   token of each device), one grouped `get_properties` per device every 30 s
-  by default (15 s to 2 min).
+  by default (15 s to 2 min). The older Yeelight lights, deaf to MIoT on the
+  LAN, are read with `get_prop` and driven with their own methods
+  (`src/miot/legacy.js`, after hass-xiaomi-miot's table).
 - **No model coded by hand**: the public [MIoT specification](https://miot-spec.org)
   of each model is downloaded once and cached; its standard services are
   translated into Gladys features:
@@ -117,7 +119,9 @@ address.
   shows up at the next reading.
 - A heater is never driven from Gladys (safety): shown only.
 - Old miIO-only models (before MIoT) have no specification and are not
-  supported.
+  supported. Those that have one but ignore the MIoT requests are said
+  "older miIO protocol only" by the diagnosis, except the Yeelight lights
+  (above).
 
 ## Development
 
